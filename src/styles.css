@@ -298,8 +298,8 @@ code {
    visible, and may expand to just over half of it when a validation report or
    coverage warnings need the room. Its report scrolls internally beyond that. */
 .sidebar-section.schedule {
-  min-height: 208px;
-  max-height: 55%;
+  min-height: 210px;
+  max-height: 65%;
 }
 
 .sidebar-title {
@@ -745,8 +745,9 @@ code {
   background: var(--panel);
   border: 2px dashed var(--border-strong);
   border-radius: 14px;
-  padding: 28px 32px;
-  max-width: 480px;
+  padding: 52px 64px;
+  max-width: 720px;
+  width: 90%;
   text-align: center;
   box-shadow: var(--shadow);
 }

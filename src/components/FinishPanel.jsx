@@ -100,9 +100,9 @@ export default function FinishPanel({
             </p>
           ) : (
             <p className="muted">
-              No material schedule loaded yet — you can still recolour any part by hand. To get catalogued finishes with
+              {/* No material schedule loaded yet — you can still recolour any part by hand. To get catalogued finishes with
               codes and prices, use <strong>Upload schedule…</strong> in the top bar (or drop a <code>.json</code>/
-              <code>.csv</code> onto the 3D view).
+              <code>.csv</code> onto the 3D view). */}
             </p>
           )}
         </div>

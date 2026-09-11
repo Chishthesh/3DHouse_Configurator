@@ -8,6 +8,7 @@ import { buildNodeGraph, selectableNodeFor, normalizeKey, meshesForScope } from 
 import { MaterialEditor } from './utils/materialApply.js';
 import { parseMaterialLibrary, parseMaterialWorkbook, groupsForNode, analyzeCoverage } from './utils/materialLibrary.js';
 import { buildInHouseScheduleShape } from './data/builtinLibrary.js';
+import { extractGlbTextures } from './utils/extractGlbTextures.js';
 import { frameForBox, frameOpeningShot } from './utils/cameraFraming.js';
 import { addCapture, makeThumbnail, slugify } from './utils/captureStore.js';
 
@@ -46,6 +47,7 @@ export default function App() {
   const objectUrlRef = useRef(null);
   const workbookFileRef = useRef(null);
   const libraryTokenRef = useRef(0);
+  const modelRef = useRef(null); // mirrors `model` state for callbacks with empty dep arrays
 
   const showToast = useCallback((message, kind = 'info') => {
     setToast({ message, kind });
@@ -73,6 +75,7 @@ export default function App() {
     setHoverName(null);
     setScope('smart');
     if (next?.isBlob) objectUrlRef.current = next.url;
+    modelRef.current = next;
     setModel(next);
   }, []);
 
@@ -110,6 +113,20 @@ export default function App() {
       if (import.meta.env.DEV) {
         window.__configuratorScene = scene;
         window.__three = THREE;
+      }
+
+      // Extract and persist embedded textures to public/textures/<model-name>/
+      // so they can be referenced in material schedules. Runs in dev only —
+      // the save-texture endpoint is provided by the Vite plugin.
+      if (import.meta.env.DEV && nextGraph.textures.length > 0) {
+        extractGlbTextures(nextGraph.textures, modelRef.current?.name ?? 'model').then(({ saved, skipped }) => {
+          if (saved.length > 0) {
+            console.log(`[textures] Saved ${saved.length} texture(s) to public/textures/:`, saved);
+          }
+          if (skipped.length > 0) {
+            console.warn(`[textures] Skipped ${skipped.length} texture(s) (compressed / unavailable):`, skipped);
+          }
+        });
       }
 
       const opening = frameOpeningShot(scene);
