@@ -142,7 +142,7 @@ code {
   gap: 6px;
   padding-right: 8px;
   border-right: 1px solid var(--border);
-  max-width: 340px;
+  max-width: 440px;
 }
 .schedule-status > span {
   font-size: 11.5px;
