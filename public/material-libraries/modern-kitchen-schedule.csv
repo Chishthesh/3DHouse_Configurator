@@ -1,0 +1,12 @@
+group,category,nodes,materials,code,option,color,roughness,metalness,texture,repeat,price,default,notes
+Floor Finishes,Flooring,kitchen_floor,,FL-01,Carrara Marble (as built),,0.3,0,/textures/countertops_marble.jpg,6x6,0,true,Honed finish
+Floor Finishes,Flooring,kitchen_floor,,FL-02,Large-Format Porcelain Tile,,0.45,0,/textures/flooring_tile.jpg,9x9,2400,false,
+Floor Finishes,Flooring,kitchen_floor,,FL-04,Polished Concrete,#B9B7B2,0.32,0,,,1800,false,
+Wall Paint,Paint,kitchen_walls,,WL-01,Chalk White,#F4F1EC,0.92,0,,,0,true,
+Wall Paint,Paint,kitchen_walls,,WL-04,Deep Ink,#2E3440,0.9,0,,,460,false,Accent wall option
+Countertops,Stone & Surfaces,island_counter;main_counter,,CT-01,Carrara Statuario (as built),,0.22,0,/textures/countertops_marble.jpg,2x2,0,true,
+Countertops,Stone & Surfaces,island_counter;main_counter,,CT-03,Midnight Black Granite,#1B1B1E,0.24,0,,,3100,false,
+Cabinetry,Joinery,island_cabinets;lower_cabinets;upper_cabinets*,cabinets wood;cab,CB-01,Natural Oak Veneer (as built),,0.5,0,/textures/cabinets_wood.jpg,2x2,0,true,
+Cabinetry,Joinery,island_cabinets;lower_cabinets;upper_cabinets*,cabinets wood;cab,CB-04,Navy Matte,#1F2E4A,0.55,0,,,1700,false,
+Tapware & Handles,Hardware,Circle.004;Circle.005;Cylinder;Cube.002,brushed handle;brushed,HW-01,Brushed Nickel (as built),#C4C6C8,0.3,0.9,,,0,true,
+Tapware & Handles,Hardware,Circle.004;Circle.005;Cylinder;Cube.002,brushed handle;brushed,HW-03,Brushed Brass,#B08D57,0.28,0.9,,,980,false,

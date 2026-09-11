@@ -1,0 +1,232 @@
+{
+  "name": "Modern Kitchen — Material & Colour Schedule",
+  "version": "1.0",
+  "model": "modern_kitchen.glb",
+  "description": "Sample finish schedule for modern_kitchen.glb. Each group targets parts of the model by node name and/or by the material name used in the file, so it keeps working even for the auto-named Blender objects (Cube.003, Circle.004, …). Replace this file with the client's own schedule — the configurator reads whatever it is given.",
+
+  "nodeLabels": {
+    "kitchen_floor": "Floor",
+    "kitchen_walls": "Walls",
+    "ceiling_surfaces": "Ceiling",
+    "island_counter": "Island — Countertop",
+    "island_cabinets": "Island — Cabinets",
+    "main_counter": "Main Run — Countertop",
+    "lower_cabinets": "Main Run — Lower Cabinets",
+    "upper_cabinets": "Upper Cabinets (left bay)",
+    "upper_cabinets.001": "Tall Cabinets (side wall)",
+    "upper_cabinets.002": "Upper Cabinets (right bay)",
+    "Cube.003": "Refrigerator",
+    "Cube.004": "Wall Oven / Microwave",
+    "Cube.005": "Oven Handle",
+    "Cube.015": "Range Hood",
+    "Cube.016": "Tall Pantry Unit",
+    "Cube.019": "Open Shelf (right)",
+    "Cube.020": "Under-shelf LED (right)",
+    "Cube.022": "Open Shelf (left)",
+    "Cube.023": "Under-shelf LED (left)",
+    "Cube.002": "Island Sink",
+    "Cube.009": "Cooktop Control",
+    "Cube.013": "Cooktop Control",
+    "Circle": "Island Sink Bowl",
+    "Circle.001": "Oven Trim Ring",
+    "Circle.002": "Refrigerator Trim Ring",
+    "Circle.004": "Island Mixer Tap",
+    "Circle.005": "Island Filter Tap",
+    "Circle.006": "Cooktop Burner",
+    "Circle.007": "Main Run Sink Bowl",
+    "Cylinder": "Island Tap Body",
+    "Cylinder.002": "Pendant Light",
+    "Cylinder.003": "Pendant Cable",
+    "Plane.004": "Window Glazing (right bay)",
+    "Plane.005": "Cooktop Panel",
+    "Plane.006": "Window Glazing (left bay)",
+    "Plane.011": "Cornice — Back Wall",
+    "Plane.012": "Cornice — Side Wall",
+    "frame": "Window Frame (right bay)",
+    "frame2": "Window Frame (left bay)",
+    "mod": "Splashback Glazing",
+    "lights": "Ceiling Downlight",
+    "light cuts": "Downlight Recess"
+  },
+
+  "groups": [
+    {
+      "id": "FL",
+      "label": "Floor Finishes",
+      "category": "Flooring",
+      "description": "Full floor plate. Priced per the whole kitchen footprint.",
+      "match": { "nodes": ["kitchen_floor"] },
+      "options": [
+        { "code": "FL-01", "name": "Carrara Marble (as built)", "finish": "Honed", "texture": "/textures/countertops_marble.jpg", "textureRepeat": [6, 6], "roughness": 0.3, "metalness": 0, "price": 0, "default": true },
+        { "code": "FL-02", "name": "Large-Format Porcelain Tile", "finish": "Matt", "texture": "/textures/flooring_tile.jpg", "textureRepeat": [9, 9], "roughness": 0.45, "metalness": 0, "price": 2400 },
+        { "code": "FL-03", "name": "Warm Oak Plank", "finish": "Brushed & oiled", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [12, 3], "roughness": 0.55, "metalness": 0, "price": 3900 },
+        { "code": "FL-04", "name": "Polished Concrete", "color": "#B9B7B2", "roughness": 0.32, "metalness": 0, "price": 1800 },
+        { "code": "FL-05", "name": "Graphite Terrazzo", "color": "#4A4A4E", "roughness": 0.38, "metalness": 0, "price": 3200 }
+      ]
+    },
+    {
+      "id": "WL",
+      "label": "Wall Paint",
+      "category": "Paint",
+      "match": { "nodes": ["kitchen_walls"] },
+      "options": [
+        { "code": "WL-01", "name": "Chalk White", "color": "#F4F1EC", "roughness": 0.92, "metalness": 0, "price": 0, "default": true },
+        { "code": "WL-02", "name": "Warm Clay", "color": "#BCA88F", "roughness": 0.92, "metalness": 0, "price": 320 },
+        { "code": "WL-03", "name": "Muted Sage", "color": "#A8B39C", "roughness": 0.92, "metalness": 0, "price": 320 },
+        { "code": "WL-04", "name": "Deep Ink", "color": "#2E3440", "roughness": 0.9, "metalness": 0, "price": 460 },
+        { "code": "WL-05", "name": "Terracotta", "color": "#B4694E", "roughness": 0.92, "metalness": 0, "price": 460 }
+      ]
+    },
+    {
+      "id": "CE",
+      "label": "Ceiling Finish",
+      "category": "Paint",
+      "match": { "nodes": ["ceiling_surfaces"] },
+      "options": [
+        { "code": "CE-01", "name": "Flat White", "color": "#F7F6F3", "roughness": 0.95, "metalness": 0, "price": 0, "default": true },
+        { "code": "CE-02", "name": "Soft Grey", "color": "#D6D8D9", "roughness": 0.95, "metalness": 0, "price": 180 },
+        { "code": "CE-03", "name": "Warm Plaster", "color": "#E8DFD2", "roughness": 0.95, "metalness": 0, "price": 240 }
+      ]
+    },
+    {
+      "id": "CT",
+      "label": "Countertops",
+      "category": "Stone & Surfaces",
+      "description": "Island top and main run top. Both are cut from the same slab.",
+      "match": { "nodes": ["island_counter", "main_counter"] },
+      "options": [
+        { "code": "CT-01", "name": "Carrara Statuario Marble (as built)", "finish": "Polished", "texture": "/textures/countertops_marble.jpg", "textureRepeat": [2, 2], "roughness": 0.22, "metalness": 0, "price": 0, "default": true },
+        { "code": "CT-02", "name": "Calacatta Gold Marble", "color": "#E8DFC8", "roughness": 0.2, "metalness": 0, "price": 4200 },
+        { "code": "CT-03", "name": "Midnight Black Granite", "color": "#1B1B1E", "roughness": 0.24, "metalness": 0, "price": 3100 },
+        { "code": "CT-04", "name": "Butcher Block Oak", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [3, 1], "roughness": 0.5, "metalness": 0, "price": 2200 },
+        { "code": "CT-05", "name": "Concrete Grey Quartz", "color": "#9C9A95", "roughness": 0.35, "metalness": 0, "price": 2600 }
+      ]
+    },
+    {
+      "id": "CB",
+      "label": "Cabinetry",
+      "category": "Joinery",
+      "description": "Island, lower run and all upper/tall cabinet carcasses and doors.",
+      "match": {
+        "nodes": ["island_cabinets", "lower_cabinets", "upper_cabinets*"],
+        "materials": ["cabinets wood", "cab"]
+      },
+      "options": [
+        { "code": "CB-01", "name": "Natural Oak Veneer (as built)", "finish": "Satin lacquer", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [2, 2], "roughness": 0.5, "metalness": 0, "price": 0, "default": true },
+        { "code": "CB-02", "name": "Stained Walnut", "finish": "Satin lacquer", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [2, 2], "color": "#8A5A3B", "keepTexture": true, "roughness": 0.48, "metalness": 0, "price": 1900 },
+        { "code": "CB-03", "name": "Matte White Lacquer", "color": "#F2F0EC", "roughness": 0.58, "metalness": 0, "price": 1400 },
+        { "code": "CB-04", "name": "Navy Matte", "color": "#1F2E4A", "roughness": 0.55, "metalness": 0, "price": 1700 },
+        { "code": "CB-05", "name": "Forest Green Matte", "color": "#2E4034", "roughness": 0.55, "metalness": 0, "price": 1700 },
+        { "code": "CB-06", "name": "Graphite Matte", "color": "#3A3A3C", "roughness": 0.6, "metalness": 0, "price": 1600 }
+      ]
+    },
+    {
+      "id": "AP",
+      "label": "Appliance Finishes",
+      "category": "Appliances",
+      "description": "Refrigerator, wall oven, range hood and the tall pantry housing.",
+      "match": {
+        "nodes": ["Cube.003", "Cube.004", "Cube.015", "Cube.016"],
+        "materials": ["steel"]
+      },
+      "options": [
+        { "code": "AP-01", "name": "Polished Stainless (as built)", "texture": "/textures/appliance_polished_metal.jpg", "textureRepeat": [1, 1], "roughness": 0.28, "metalness": 0.85, "price": 0, "default": true },
+        { "code": "AP-02", "name": "Brushed Graphite", "color": "#4A4D50", "roughness": 0.4, "metalness": 0.8, "price": 2100 },
+        { "code": "AP-03", "name": "Matte Black Slate", "color": "#17181A", "roughness": 0.52, "metalness": 0.45, "price": 2400 },
+        { "code": "AP-04", "name": "Panel-Ready Oak", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [1, 1], "roughness": 0.5, "metalness": 0, "price": 3300 }
+      ]
+    },
+    {
+      "id": "HW",
+      "label": "Tapware & Handles",
+      "category": "Hardware",
+      "description": "Mixer taps, sink bowls, cabinet pulls and trim rings.",
+      "match": {
+        "nodes": ["Circle", "Circle.001", "Circle.002", "Circle.004", "Circle.005", "Circle.007", "Cylinder", "Cube.002", "Cube.005"],
+        "materials": ["brushed handle", "brushed"]
+      },
+      "options": [
+        { "code": "HW-01", "name": "Brushed Nickel (as built)", "color": "#C4C6C8", "roughness": 0.3, "metalness": 0.9, "price": 0, "default": true },
+        { "code": "HW-02", "name": "Matte Black", "color": "#1A1A1A", "roughness": 0.42, "metalness": 0.6, "price": 640 },
+        { "code": "HW-03", "name": "Brushed Brass", "color": "#B08D57", "roughness": 0.28, "metalness": 0.9, "price": 980 },
+        { "code": "HW-04", "name": "Polished Chrome", "color": "#DEDEE2", "roughness": 0.08, "metalness": 0.95, "price": 520 },
+        { "code": "HW-05", "name": "Gunmetal", "color": "#55595E", "roughness": 0.3, "metalness": 0.85, "price": 760 }
+      ]
+    },
+    {
+      "id": "HB",
+      "label": "Cooktop & Controls",
+      "category": "Appliances",
+      "match": {
+        "nodes": ["Plane.005", "Cube.009", "Cube.013", "Circle.006", "Cylinder.003"],
+        "materials": ["black"]
+      },
+      "options": [
+        { "code": "HB-01", "name": "Black Ceramic Glass (as built)", "color": "#101013", "roughness": 0.18, "metalness": 0.1, "price": 0, "default": true },
+        { "code": "HB-02", "name": "Stainless Trim", "color": "#B6B8BA", "roughness": 0.3, "metalness": 0.85, "price": 420 },
+        { "code": "HB-03", "name": "Matte Graphite", "color": "#33363A", "roughness": 0.5, "metalness": 0.3, "price": 380 }
+      ]
+    },
+    {
+      "id": "GL",
+      "label": "Glazing",
+      "category": "Glass",
+      "match": {
+        "nodes": ["Plane.004", "Plane.006", "mod"],
+        "materials": ["glass", "glass.001"]
+      },
+      "options": [
+        { "code": "GL-01", "name": "Clear Low-Iron (as built)", "color": "#DCE6EA", "opacity": 0.22, "roughness": 0.05, "metalness": 0, "price": 0, "default": true },
+        { "code": "GL-02", "name": "Bronze Tinted", "color": "#6B5A46", "opacity": 0.42, "roughness": 0.06, "metalness": 0, "price": 890 },
+        { "code": "GL-03", "name": "Acid-Etched Frosted", "color": "#E8EDEF", "opacity": 0.72, "roughness": 0.6, "metalness": 0, "price": 740 },
+        { "code": "GL-04", "name": "Smoked Grey", "color": "#4E5257", "opacity": 0.5, "roughness": 0.08, "metalness": 0, "price": 820 }
+      ]
+    },
+    {
+      "id": "FR",
+      "label": "Window Frames & Cornice",
+      "category": "Joinery",
+      "match": {
+        "nodes": ["frame", "frame2", "Plane.011", "Plane.012"],
+        "materials": ["frame"]
+      },
+      "options": [
+        { "code": "FR-01", "name": "Matte White (as built)", "color": "#EDEDEA", "roughness": 0.45, "metalness": 0, "price": 0, "default": true },
+        { "code": "FR-02", "name": "Anodised Black", "color": "#1D1E20", "roughness": 0.4, "metalness": 0.35, "price": 560 },
+        { "code": "FR-03", "name": "Bronze Anodised", "color": "#7A6247", "roughness": 0.38, "metalness": 0.5, "price": 720 },
+        { "code": "FR-04", "name": "Oak Veneer", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [1, 4], "roughness": 0.5, "metalness": 0, "price": 640 }
+      ]
+    },
+    {
+      "id": "SH",
+      "label": "Open Shelving",
+      "category": "Joinery",
+      "match": {
+        "nodes": ["Cube.019", "Cube.022"],
+        "materials": ["Counter"]
+      },
+      "options": [
+        { "code": "SH-01", "name": "Oak Shelf (as built)", "texture": "/textures/cabinets_wood.jpg", "textureRepeat": [4, 1], "roughness": 0.5, "metalness": 0, "price": 0, "default": true },
+        { "code": "SH-02", "name": "Matte White", "color": "#F2F0EC", "roughness": 0.6, "metalness": 0, "price": 180 },
+        { "code": "SH-03", "name": "Blackened Steel", "color": "#232427", "roughness": 0.4, "metalness": 0.6, "price": 340 },
+        { "code": "SH-04", "name": "Marble Shelf", "texture": "/textures/countertops_marble.jpg", "textureRepeat": [3, 1], "roughness": 0.22, "metalness": 0, "price": 620 }
+      ]
+    },
+    {
+      "id": "LT",
+      "label": "Lighting Colour",
+      "category": "Lighting",
+      "description": "Colour temperature of the pendant, downlights and under-shelf LED strips.",
+      "match": {
+        "nodes": ["lights", "light cuts", "Cylinder.002", "Cube.020", "Cube.023"],
+        "materials": ["Light", "Material"]
+      },
+      "options": [
+        { "code": "LT-01", "name": "Warm White 2700K (as built)", "color": "#FFD9B0", "price": 0, "default": true },
+        { "code": "LT-02", "name": "Neutral White 3500K", "color": "#FFEBD2", "price": 120 },
+        { "code": "LT-03", "name": "Cool White 5000K", "color": "#EAF2FF", "price": 120 },
+        { "code": "LT-04", "name": "Amber Accent", "color": "#FF9E4A", "price": 160 }
+      ]
+    }
+  ]
+}

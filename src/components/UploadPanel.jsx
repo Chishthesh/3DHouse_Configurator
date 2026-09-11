@@ -1,29 +1,77 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
-export default function UploadPanel({ onFileChosen, sampleUrl }) {
+const SAMPLES = [
+  { label: 'Modern kitchen (client model)', url: '/models/modern_kitchen.glb', name: 'modern_kitchen.glb' },
+  { label: 'Sample house', url: '/models/sample-house.glb', name: 'sample-house.glb' },
+];
+
+export default function UploadPanel({ onFileChosen, onSampleChosen }) {
   const inputRef = useRef(null);
+  const [error, setError] = useState(null);
+  const [dragging, setDragging] = useState(false);
 
-  const handleChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) onFileChosen(file);
+  const accept = (file) => {
+    setError(null);
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.gltf')) {
+      // A .gltf references its buffers and images as sibling files. Loading one from
+      // a browser file picker gives no access to those siblings, so it would load as
+      // an empty scene — better to say so than to show nothing and look broken.
+      setError('Please export as .glb (binary). A .gltf file keeps its textures and geometry in separate files, which a browser upload cannot reach.');
+      return;
+    }
+    if (!name.endsWith('.glb')) {
+      setError(`"${file.name}" is not a .glb file.`);
+      return;
+    }
+    onFileChosen(file);
   };
 
   return (
     <div className="upload-overlay">
-      <div className="upload-card">
-        <h2>Upload your 3D house model</h2>
-        <p>Select a .glb file (binary glTF 2.0) with zones named per the configurator's mesh-naming convention.</p>
-        <input ref={inputRef} type="file" accept=".glb" onChange={handleChange} />
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-          <button className="btn btn-primary" onClick={() => inputRef.current?.click()}>
+      <div
+        className={`upload-card ${dragging ? 'dragging' : ''}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          accept(e.dataTransfer.files?.[0]);
+        }}
+      >
+        <h2>Upload a 3D model</h2>
+        <p>
+          Drop a <strong>.glb</strong> here, or choose a file. The configurator reads the model itself — its nodes, sub-nodes,
+          materials and textures — so no particular naming convention is required.
+        </p>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".glb,model/gltf-binary"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            accept(e.target.files?.[0]);
+            e.target.value = '';
+          }}
+        />
+
+        <div className="upload-buttons">
+          <button className="btn btn-primary" type="button" onClick={() => inputRef.current?.click()}>
             Choose .glb file
           </button>
-          {sampleUrl && (
-            <button className="btn" onClick={() => onFileChosen(sampleUrl)}>
-              Use sample house
+          {SAMPLES.map((s) => (
+            <button key={s.url} className="btn" type="button" onClick={() => onSampleChosen(s)}>
+              {s.label}
             </button>
-          )}
+          ))}
         </div>
+
+        {error && <div className="upload-error">{error}</div>}
       </div>
     </div>
   );

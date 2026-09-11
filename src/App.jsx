@@ -1,215 +1,679 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import * as THREE from 'three';
 import Configurator from './components/Configurator.jsx';
 import SavedCaptures from './components/SavedCaptures.jsx';
-import { ZONES, CATEGORY_SHORT_WORD, categoryZones } from './data/zoneSpec.js';
-import { applyZoneOption } from './utils/zoneResolve.js';
-import { addCapture, slugify } from './utils/captureStore.js';
-import { discoverAreas, discoverPresentZones, frameForWholeScene, frameForBox, tintNode, resetNodeTint } from './utils/sceneAnalysis.js';
+import InspectorPanel from './components/InspectorPanel.jsx';
+import ScheduleUploadButton from './components/ScheduleUploadButton.jsx';
+import { buildNodeGraph, selectableNodeFor, normalizeKey, meshesForScope } from './utils/nodeGraph.js';
+import { MaterialEditor } from './utils/materialApply.js';
+import { parseMaterialLibrary, parseMaterialWorkbook, groupsForNode, analyzeCoverage } from './utils/materialLibrary.js';
+import { buildInHouseScheduleShape } from './data/builtinLibrary.js';
+import { frameForBox, frameOpeningShot } from './utils/cameraFraming.js';
+import { addCapture, makeThumbnail, slugify } from './utils/captureStore.js';
+
+const SAMPLE_SCHEDULES = [
+  { label: 'Configurator Parameters (Excel)', url: '/material-libraries/configurator-parameters.xlsx' },
+  { label: 'Kitchen schedule (JSON)', url: '/material-libraries/modern-kitchen-schedule.json' },
+  { label: 'Kitchen schedule (CSV)', url: '/material-libraries/modern-kitchen-schedule.csv' },
+];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('configurator');
-  const [glbUrl, setGlbUrl] = useState(null);
-  const [selections, setSelections] = useState({});
-  const [activeCategory, setActiveCategory] = useState(null);
-  const [activeZone, setActiveZone] = useState(null);
-  const [areas, setAreas] = useState([]);
-  const [presentZones, setPresentZones] = useState([]); // [{ zoneKey, box }]
-  const [activeAreaId, setActiveAreaId] = useState(null);
-  const [genericTints, setGenericTints] = useState({}); // areaId -> current hex color
-  const [groundY, setGroundY] = useState(-0.05);
+
+  const [model, setModel] = useState(null); // { url, name, key, isBlob }
+  const [graph, setGraph] = useState(null);
+  const [sceneMeta, setSceneMeta] = useState(null); // { center, radius, groundY, box, enclosed }
+
+  const [library, setLibrary] = useState(null);
+  const [libErrors, setLibErrors] = useState([]);
+  const [libWarnings, setLibWarnings] = useState([]);
+  const [workbook, setWorkbook] = useState(null); // { sheets, activeSheet } for .xlsx uploads
+
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [scope, setScope] = useState('smart');
+  const [edits, setEdits] = useState({});
   const [flyTo, setFlyTo] = useState(null);
-  const [selectedZoneKey, setSelectedZoneKey] = useState(null);
-  const [editingCapture, setEditingCapture] = useState(null);
+  const [flying, setFlying] = useState(false);
+  const [hoverName, setHoverName] = useState(null);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState(null);
   const [captureRefreshToken, setCaptureRefreshToken] = useState(0);
 
   const sceneViewerRef = useRef(null);
-  const sceneRef = useRef(null);
+  const sceneRootRef = useRef(null);
+  const editorRef = useRef(null);
   const toastTimer = useRef(null);
+  const objectUrlRef = useRef(null);
+  const workbookFileRef = useRef(null);
+  const libraryTokenRef = useRef(0);
 
-  const presentZoneKeys = useMemo(() => new Set(presentZones.map((z) => z.zoneKey)), [presentZones]);
-  // Areas that aren't one of the 14 known {category}_{zone} groups have no curated
-  // option catalog — offer them a plain color tint instead, purely additive to the
-  // curated system (never shown for areas that already match a real zone).
-  const genericAreas = useMemo(() => areas.filter((a) => !ZONES[a.id]), [areas]);
-  const totalPrice = useMemo(() => Object.values(selections).reduce((sum, opt) => sum + (opt?.price || 0), 0), [selections]);
+  const showToast = useCallback((message, kind = 'info') => {
+    setToast({ message, kind });
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3200);
+  }, []);
 
-  function resetForNewModel(url) {
-    setGlbUrl(url);
-    setSelections({});
-    setSelectedZoneKey(null);
-    setEditingCapture(null);
-    setAreas([]);
-    setPresentZones([]);
-    setActiveAreaId(null);
-    setGenericTints({});
-    setActiveCategory(null);
-    setActiveZone(null);
-    setFlyTo(null);
-    sceneRef.current = null;
-  }
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
 
-  function handleFileChosen(fileOrUrl) {
-    if (typeof fileOrUrl === 'string') {
-      resetForNewModel(fileOrUrl);
-      return;
+  // --- Model loading -------------------------------------------------------------
+
+  const resetForNewModel = useCallback((next) => {
+    editorRef.current?.dispose();
+    editorRef.current = null;
+    sceneRootRef.current = null;
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
     }
-    const url = URL.createObjectURL(fileOrUrl);
-    resetForNewModel(url);
-  }
+    setGraph(null);
+    setSceneMeta(null);
+    setSelectedNodeId(null);
+    setEdits({});
+    setFlyTo(null);
+    setHoverName(null);
+    setScope('smart');
+    if (next?.isBlob) objectUrlRef.current = next.url;
+    setModel(next);
+  }, []);
+
+  const handleFileChosen = useCallback(
+    (file) => {
+      const url = URL.createObjectURL(file);
+      resetForNewModel({
+        url,
+        name: file.name,
+        key: `${file.name}:${file.size}`,
+        isBlob: true,
+        sizeMB: file.size / 1024 / 1024,
+      });
+    },
+    [resetForNewModel]
+  );
+
+  const handleSampleChosen = useCallback(
+    (sample) => resetForNewModel({ url: sample.url, name: sample.name, key: sample.url, isBlob: false }),
+    [resetForNewModel]
+  );
 
   // Everything below is derived by inspecting the scene graph that was actually
-  // loaded — no room names or coordinates are hardcoded anywhere in this app.
-  function handleSceneReady(scene) {
-    sceneRef.current = scene;
+  // loaded — no node names, room names or coordinates are hardcoded in this app.
+  const handleSceneReady = useCallback(
+    (scene) => {
+      if (sceneRootRef.current === scene) return; // StrictMode double-invoke guard
+      sceneRootRef.current = scene;
+      editorRef.current?.dispose();
+      editorRef.current = new MaterialEditor(scene);
 
-    // "structure_" nodes are explicitly non-configurable per the spec (roofs, framing,
-    // etc.) — they're real nodes in the file, but not useful as walkthrough stops, so
-    // they're left out of the nav pills while everything else stays fully dynamic.
-    const discoveredAreas = discoverAreas(scene).filter((a) => !a.id.startsWith('structure_'));
-    setAreas(discoveredAreas);
+      const nextGraph = buildNodeGraph(scene);
+      setGraph(nextGraph);
+      // Handy when diagnosing a model that frames or selects oddly; dev-only.
+      if (import.meta.env.DEV) {
+        window.__configuratorScene = scene;
+        window.__three = THREE;
+      }
 
-    const zones = discoverPresentZones(scene);
-    setPresentZones(zones);
-    if (zones.length > 0) {
-      setActiveCategory(ZONES[zones[0].zoneKey].category);
-      setActiveZone(zones[0].zoneKey);
-    } else {
-      setActiveCategory(null);
-      setActiveZone(null);
-    }
-
-    const overview = frameForWholeScene(scene);
-    setGroundY(overview.box.min.y - 0.02);
-    setActiveAreaId(null);
-    setFlyTo({ position: overview.position, target: overview.target, minDistance: overview.minDistance, maxDistance: overview.maxDistance, enablePan: overview.enablePan, _t: Date.now() });
-  }
-
-  function handleCategoryChange(cat) {
-    setActiveCategory(cat);
-    const firstPresent = categoryZones(cat).find((zk) => presentZoneKeys.has(zk));
-    setActiveZone(firstPresent ?? null);
-  }
-
-  function handleAreaSelect(area) {
-    setActiveAreaId(area.id);
-    const frame = frameForBox(area.box);
-    setFlyTo({ ...frame, _t: Date.now() });
-  }
-
-  function handleGenericTint(area, colorHex) {
-    tintNode(area.node, colorHex);
-    setGenericTints((prev) => ({ ...prev, [area.id]: colorHex }));
-  }
-
-  function handleGenericReset(area) {
-    resetNodeTint(area.node);
-    setGenericTints((prev) => {
-      const next = { ...prev };
-      delete next[area.id];
-      return next;
-    });
-  }
-
-  function handleZoneClick(zoneKey) {
-    setSelectedZoneKey(zoneKey);
-    setActiveAreaId(null);
-    if (zoneKey) {
-      setActiveCategory(ZONES[zoneKey].category);
-      setActiveZone(zoneKey);
-    }
-  }
-
-  function handlePick(zoneKey, option) {
-    setSelections((prev) => ({ ...prev, [zoneKey]: option }));
-    if (sceneRef.current) applyZoneOption(sceneRef.current, zoneKey, option);
-  }
-
-  function showToast(message) {
-    setToast(message);
-    clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2400);
-  }
-
-  async function handleCapture() {
-    if (!sceneViewerRef.current) return;
-    const dataUrl = sceneViewerRef.current.captureImage();
-    const pose = sceneViewerRef.current.getCameraPose();
-    if (!dataUrl) return;
-
-    const zoneKey = editingCapture?.zoneKey ?? selectedZoneKey ?? activeZone ?? null;
-    const areaId = editingCapture?.areaId ?? activeAreaId ?? 'view';
-    const areaLabel = areas.find((a) => a.id === areaId)?.label ?? (areaId === 'view' ? 'Overview' : areaId);
-
-    let groupId, zoneLabel, materialChoice;
-    if (zoneKey && ZONES[zoneKey]) {
-      zoneLabel = ZONES[zoneKey].label;
-      materialChoice = selections[zoneKey] ?? ZONES[zoneKey].default;
-      groupId = editingCapture?.groupId ?? slugify(`${areaId}_${CATEGORY_SHORT_WORD[ZONES[zoneKey].category]}`);
-    } else {
-      zoneLabel = null;
-      materialChoice = null;
-      groupId = slugify(`${areaId}_view`);
-    }
-
-    const record = await addCapture({
-      groupId,
-      zoneKey,
-      zoneLabel,
-      roomLabel: areaLabel,
-      materialChoice,
-      cameraPosition: pose?.position ?? null,
-      cameraTarget: pose?.target ?? null,
-      dataUrl,
-    });
-
-    setCaptureRefreshToken((t) => t + 1);
-    showToast(`Saved "${record.displayName}" to Saved Captures`);
-  }
-
-  function handleEditCapture(capture) {
-    if (!capture.zoneKey) return;
-    const areaId = areas.find((a) => a.label === capture.roomLabel)?.id ?? null;
-    setActiveTab('configurator');
-    setActiveAreaId(areaId);
-    setActiveCategory(ZONES[capture.zoneKey].category);
-    setActiveZone(capture.zoneKey);
-    setSelectedZoneKey(capture.zoneKey);
-    setEditingCapture({ groupId: capture.groupId, zoneKey: capture.zoneKey, areaId: areaId ?? 'view' });
-
-    if (capture.materialChoice && sceneRef.current) {
-      applyZoneOption(sceneRef.current, capture.zoneKey, capture.materialChoice);
-      setSelections((prev) => ({ ...prev, [capture.zoneKey]: capture.materialChoice }));
-    }
-    if (capture.cameraPosition && capture.cameraTarget) {
-      // Derive sensible zoom limits from the saved shot itself (distance from camera
-      // to target) rather than any named-room lookup, since captures can outlive
-      // whichever model produced them.
-      const [px, py, pz] = capture.cameraPosition;
-      const [tx, ty, tz] = capture.cameraTarget;
-      const dist = Math.hypot(px - tx, py - ty, pz - tz) || 1;
-      setFlyTo({
-        position: capture.cameraPosition,
-        target: capture.cameraTarget,
-        minDistance: Math.max(dist * 0.15, 0.15),
-        maxDistance: dist * 4,
-        enablePan: false,
-        _t: Date.now(),
+      const opening = frameOpeningShot(scene);
+      const size = opening.box.getSize(new THREE.Vector3());
+      const center = opening.box.getCenter(new THREE.Vector3());
+      setSceneMeta({
+        box: opening.box,
+        center: center.toArray(),
+        radius: Math.max(size.length() / 2, 0.5),
+        groundY: opening.box.min.y - Math.max(size.y * 0.002, 0.01),
+        openSided: opening.openSided,
+        openingPosition: opening.position,
       });
+      setFlyTo({ ...opening, instant: true, _t: Date.now() });
+      setSelectedNodeId(null);
+      setEdits({});
+    },
+    []
+  );
+
+  useEffect(
+    () => () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    },
+    []
+  );
+
+  // --- Material schedule ---------------------------------------------------------
+
+  // A schedule naming a texture that is not actually in the texture folder is an easy
+  // mistake and, without this, only shows up as a failure when someone clicks the
+  // option. Checked once per load, and guarded against a newer load landing first.
+  const validateTextures = useCallback(async (lib, token) => {
+    const urls = new Set();
+    lib.groups.forEach((g) => g.options.forEach((o) => o.texture && urls.add(o.texture)));
+    if (urls.size === 0) return;
+    const missing = [];
+    await Promise.all(
+      [...urls].map(async (url) => {
+        try {
+          const res = await fetch(url, { method: 'HEAD' });
+          // A dev server that falls back to index.html answers 200 with HTML, so the
+          // status alone is not enough to prove the image is there.
+          const type = res.headers.get('content-type') ?? '';
+          if (!res.ok || !/^(image|application\/octet-stream)/.test(type)) missing.push(url);
+        } catch {
+          missing.push(url);
+        }
+      })
+    );
+    if (missing.length > 0 && libraryTokenRef.current === token) {
+      setLibWarnings((prev) => [
+        ...prev,
+        `${missing.length} texture${missing.length === 1 ? '' : 's'} named in the schedule could not be found: ${missing
+          .map((m) => m.split('/').pop())
+          .join(', ')}. Add the file${missing.length === 1 ? '' : 's'} to public/textures/.`,
+      ]);
     }
-  }
+  }, []);
+
+  const applyParsedLibrary = useCallback(
+    (result, sourceLabel) => {
+      setLibErrors(result.errors);
+      setLibWarnings(result.warnings);
+      // Only workbooks carry sheets; anything else clears the picker.
+      setWorkbook(result.sheets?.length ? { sheets: result.sheets, activeSheet: result.activeSheet } : null);
+      if (result.library) {
+        setLibrary(result.library);
+        const token = (libraryTokenRef.current = (libraryTokenRef.current ?? 0) + 1);
+        validateTextures(result.library, token);
+        const g = result.library.groups.length;
+        const o = result.library.optionCount;
+        showToast(
+          `Loaded "${result.library.name}" — ${g} group${g === 1 ? '' : 's'}, ${o} option${o === 1 ? '' : 's'}.`,
+          'success'
+        );
+      } else {
+        setLibrary(null);
+        showToast(`Could not read ${sourceLabel}: ${result.errors[0] ?? 'unknown problem'}`, 'error');
+      }
+    },
+    [showToast, validateTextures]
+  );
+
+  const isWorkbookName = (name) => /\.xlsx?$/i.test(name) || /\.xlsm$/i.test(name);
+
+  // One entry point for every format. An .xlsx is binary so it takes the ArrayBuffer
+  // path; JSON and CSV keep the text path they already used.
+  const readSchedule = useCallback(async (blob, name, preferredSheet = null) => {
+    if (/\.xls$/i.test(name)) {
+      return {
+        library: null,
+        warnings: [],
+        errors: [`"${name}" is the old binary Excel format. Open it in Excel and save as .xlsx, then upload again.`],
+      };
+    }
+    if (isWorkbookName(name)) {
+      return parseMaterialWorkbook(await blob.arrayBuffer(), name, preferredSheet);
+    }
+    return parseMaterialLibrary(await blob.text(), name);
+  }, []);
+
+  const handleLoadLibraryFile = useCallback(
+    async (file) => {
+      try {
+        // Kept so switching worksheets later does not require re-picking the file.
+        workbookFileRef.current = isWorkbookName(file.name) ? { blob: file, name: file.name } : null;
+        applyParsedLibrary(await readSchedule(file, file.name), file.name);
+      } catch (err) {
+        setLibrary(null);
+        setWorkbook(null);
+        setLibErrors([`Could not read the file: ${err.message}`]);
+      }
+    },
+    [applyParsedLibrary, readSchedule]
+  );
+
+  const handleLoadLibrarySample = useCallback(
+    async (sample) => {
+      try {
+        const res = await fetch(sample.url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const name = sample.url.split('/').pop();
+        workbookFileRef.current = isWorkbookName(name) ? { blob, name } : null;
+        applyParsedLibrary(await readSchedule(blob, name), sample.url);
+      } catch (err) {
+        setLibrary(null);
+        setWorkbook(null);
+        setLibErrors([`Could not fetch ${sample.url}: ${err.message}`]);
+      }
+    },
+    [applyParsedLibrary, readSchedule]
+  );
+
+  const handleSelectSheet = useCallback(
+    async (sheetName) => {
+      const held = workbookFileRef.current;
+      if (!held) return;
+      applyParsedLibrary(await readSchedule(held.blob, held.name, sheetName), sheetName);
+    },
+    [applyParsedLibrary, readSchedule]
+  );
+
+  const handleClearLibrary = useCallback(() => {
+    setLibrary(null);
+    setLibErrors([]);
+    setLibWarnings([]);
+    setWorkbook(null);
+    workbookFileRef.current = null;
+  }, []);
+
+  // A model exported to the older {category}_{zone} convention gets its built-in
+  // catalogue automatically, so that workflow keeps working with nothing to upload.
+  useEffect(() => {
+    if (!graph || library) return;
+    const builtin = parseMaterialLibrary(JSON.stringify(buildInHouseScheduleShape()), 'built-in');
+    if (!builtin.library) return;
+    const coverage = analyzeCoverage(builtin.library, graph);
+    if (coverage && coverage.matchedGroupCount > 0) {
+      setLibrary(builtin.library);
+      setLibErrors([]);
+      setLibWarnings([]);
+      showToast('This model follows the {category}_{zone} convention — built-in finish catalogue applied.', 'success');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graph]);
+
+  // --- Derived -------------------------------------------------------------------
+
+  const labelFor = useCallback(
+    (node) => {
+      if (!node) return '';
+      const override = library?.nodeLabels.get(normalizeKey(node.name));
+      return override ?? node.displayName;
+    },
+    [library]
+  );
+
+  const nodeMatches = useMemo(() => {
+    const map = new Map();
+    if (!graph || !library) return map;
+    for (const node of graph.nodes) map.set(node.id, groupsForNode(library, graph, node));
+    return map;
+  }, [graph, library]);
+
+  const coverage = useMemo(() => (graph && library ? analyzeCoverage(library, graph) : null), [graph, library]);
+
+  const optionCountFor = useCallback(
+    (node) => (nodeMatches.get(node.id) ?? []).reduce((sum, m) => sum + m.group.options.length, 0),
+    [nodeMatches]
+  );
+
+  const selectedNode = selectedNodeId && graph ? graph.byId.get(selectedNodeId) ?? null : null;
+  const matchedGroups = selectedNode ? nodeMatches.get(selectedNode.id) ?? [] : [];
+  const editedNodeIds = useMemo(() => new Set(Object.keys(edits)), [edits]);
+  const totalPrice = useMemo(() => Object.values(edits).reduce((s, e) => s + (e.price || 0), 0), [edits]);
+  // A schedule with no price column (the workbook format has none) must not imply a
+  // quote of zero, so the running total only appears once something is actually priced.
+  const hasPricing = useMemo(() => Object.values(edits).some((e) => typeof e.price === 'number'), [edits]);
+
+  // --- Selection & navigation ----------------------------------------------------
+
+  const flyToNode = useCallback(
+    (node) => {
+      const root = sceneRootRef.current;
+      if (!root || !node?.box || !sceneMeta) return;
+      const frame = frameForBox(node.box, {
+        root,
+        ignoreObject: node.object,
+        towardCenter: new THREE.Vector3(...sceneMeta.center),
+        containBox: sceneMeta.box,
+        openingPosition: sceneMeta.openingPosition,
+      });
+      setFlyTo({ ...frame, _t: Date.now() });
+    },
+    [sceneMeta]
+  );
+
+  const handleSelectNode = useCallback(
+    (node) => {
+      if (!node) return;
+      setSelectedNodeId(node.id);
+      setActiveTab('configurator');
+      if (node.box) flyToNode(node);
+      else showToast(`"${node.name || node.rawType}" is a grouping node with no geometry — nothing to fly to.`, 'info');
+    },
+    [flyToNode, showToast]
+  );
+
+  const handlePickInScene = useCallback(
+    (object) => {
+      if (!graph) return;
+      const node = selectableNodeFor(graph, object);
+      if (node) handleSelectNode(node);
+    },
+    [graph, handleSelectNode]
+  );
+
+  const handleHover = useCallback(
+    (object) => {
+      if (!object || !graph) {
+        setHoverName(null);
+        return;
+      }
+      const node = selectableNodeFor(graph, object);
+      const next = node ? labelFor(node) : null;
+      setHoverName((prev) => (prev === next ? prev : next));
+    },
+    [graph, labelFor]
+  );
+
+  const handleOverview = useCallback(() => {
+    const root = sceneRootRef.current;
+    if (!root || !sceneMeta) return;
+    setSelectedNodeId(null);
+    setFlyTo({ ...frameOpeningShot(root), _t: Date.now() });
+  }, [sceneMeta]);
+
+  // --- Applying finishes ---------------------------------------------------------
+
+  // A sub-part is "separately configurable" only when the schedule targets it by its
+  // own node name (score 100). Matching merely because of the material it uses is not
+  // enough: the island cabinets and the two primitive meshes inside them all match
+  // the same Cabinetry group via the "cabinets wood" material, and treating those
+  // children as independent would leave the default scope with nothing to apply to.
+  const hasOwnFinishes = useCallback(
+    (nodeId) => (nodeMatches.get(nodeId) ?? []).some((m) => m.score === 100),
+    [nodeMatches]
+  );
+
+  const meshesFor = useCallback(
+    (node, requestedScope) => (graph && node ? meshesForScope(graph, node, requestedScope, hasOwnFinishes) : []),
+    [graph, hasOwnFinishes]
+  );
+
+  // Stable identity: the node tree memoizes its rows against this.
+  const isScheduled = useCallback((node) => hasOwnFinishes(node.id), [hasOwnFinishes]);
+
+  const scopeCounts = useMemo(() => {
+    if (!selectedNode) return { smart: 0, subtree: 0 };
+    return {
+      smart: meshesFor(selectedNode, 'smart').length,
+      subtree: meshesFor(selectedNode, 'subtree').length,
+    };
+  }, [selectedNode, meshesFor]);
+
+  // A pure group node whose every sub-part is separately configurable has no surface
+  // of its own to change, so "this part" would apply to nothing. Start such a
+  // selection on the wider scope rather than letting the user click into a no-op.
+  useEffect(() => {
+    if (!selectedNodeId) return;
+    setScope(scopeCounts.smart > 0 ? 'smart' : 'subtree');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedNodeId]);
+
+  const recordEdit = useCallback((node, record) => {
+    setEdits((prev) => ({ ...prev, [node.id]: record }));
+  }, []);
+
+  const handleApplyOption = useCallback(
+    async (group, option) => {
+      const editor = editorRef.current;
+      if (!editor || !selectedNode) return;
+      const meshes = meshesFor(selectedNode, scope);
+      if (meshes.length === 0) {
+        showToast(`Nothing to change: this selection has no surface at the "${scope}" scope.`, 'error');
+        return;
+      }
+      setBusy(true);
+      try {
+        const { meshCount, textureError } = await editor.applyOption(meshes, option);
+        recordEdit(selectedNode, {
+          nodeId: selectedNode.id,
+          nodeName: selectedNode.name,
+          nodePath: selectedNode.path,
+          nodeLabel: labelFor(selectedNode),
+          scope,
+          kind: 'option',
+          groupId: group.id,
+          groupLabel: group.label,
+          optionCode: option.code,
+          optionName: option.name,
+          color: option.color,
+          price: option.price,
+          option,
+        });
+        if (textureError) showToast(`${option.name} applied, but its texture failed to load (${textureError}).`, 'error');
+        else showToast(`${option.name} applied to ${meshCount} surface${meshCount === 1 ? '' : 's'}.`, 'success');
+      } catch (err) {
+        showToast(`Could not apply ${option.name}: ${err.message}`, 'error');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [selectedNode, scope, meshesFor, labelFor, recordEdit, showToast]
+  );
+
+  const handleApplyColor = useCallback(
+    (hex) => {
+      const editor = editorRef.current;
+      if (!editor || !selectedNode) return;
+      const meshes = meshesFor(selectedNode, scope);
+      if (meshes.length === 0) {
+        showToast(`Nothing to change: this selection has no surface at the "${scope}" scope.`, 'error');
+        return;
+      }
+      const meshCount = editor.applyColor(meshes, hex);
+      recordEdit(selectedNode, {
+        nodeId: selectedNode.id,
+        nodeName: selectedNode.name,
+        nodePath: selectedNode.path,
+        nodeLabel: labelFor(selectedNode),
+        scope,
+        kind: 'color',
+        color: hex,
+        optionName: `Custom ${hex.toUpperCase()}`,
+        price: 0,
+      });
+      showToast(`Custom colour applied to ${meshCount} surface${meshCount === 1 ? '' : 's'}.`, 'success');
+    },
+    [selectedNode, scope, meshesFor, labelFor, recordEdit, showToast]
+  );
+
+  const handleApplyModelMaterial = useCallback(
+    (materialRecord) => {
+      const editor = editorRef.current;
+      if (!editor || !selectedNode) return;
+      const meshes = meshesFor(selectedNode, scope);
+      if (meshes.length === 0) {
+        showToast(`Nothing to change: this selection has no surface at the "${scope}" scope.`, 'error');
+        return;
+      }
+      const meshCount = editor.applyExistingMaterial(meshes, materialRecord.material);
+      recordEdit(selectedNode, {
+        nodeId: selectedNode.id,
+        nodeName: selectedNode.name,
+        nodePath: selectedNode.path,
+        nodeLabel: labelFor(selectedNode),
+        scope,
+        kind: 'modelMaterial',
+        materialName: materialRecord.name,
+        color: materialRecord.original.color,
+        optionName: `Material "${materialRecord.name}" from this file`,
+        price: 0,
+      });
+      showToast(`"${materialRecord.name}" applied to ${meshCount} surface${meshCount === 1 ? '' : 's'}.`, 'success');
+    },
+    [selectedNode, scope, meshesFor, labelFor, recordEdit, showToast]
+  );
+
+  const handleResetNode = useCallback(
+    (node) => {
+      const editor = editorRef.current;
+      if (!editor || !node) return;
+      // Reset always covers the whole subtree: forgiving, and it cannot leave a
+      // sub-part stranded with a finish the user thinks they have already undone.
+      editor.resetMeshes(meshesFor(node, 'subtree'));
+      setEdits((prev) => {
+        const next = { ...prev };
+        delete next[node.id];
+        return next;
+      });
+      showToast(`${labelFor(node)} restored to the finish in the file.`, 'info');
+    },
+    [meshesFor, labelFor, showToast]
+  );
+
+  const handleResetAll = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const count = editor.resetAll();
+    setEdits({});
+    showToast(`All changes reverted (${count} surface${count === 1 ? '' : 's'}).`, 'info');
+  }, [showToast]);
+
+  // --- Saving --------------------------------------------------------------------
+
+  const handleSave = useCallback(
+    async (title) => {
+      if (!sceneViewerRef.current || !model) return;
+      setBusy(true);
+      try {
+        const dataUrl = sceneViewerRef.current.captureImage();
+        if (!dataUrl || dataUrl.length < 512) throw new Error('the renderer returned an empty image');
+        const pose = sceneViewerRef.current.getCameraPose();
+        const thumbUrl = await makeThumbnail(dataUrl);
+        const config = Object.values(edits).map((e) => ({
+          nodeName: e.nodeName,
+          nodePath: e.nodePath,
+          nodeLabel: e.nodeLabel,
+          scope: e.scope,
+          kind: e.kind,
+          groupId: e.groupId ?? null,
+          groupLabel: e.groupLabel ?? null,
+          optionCode: e.optionCode ?? null,
+          optionName: e.optionName ?? null,
+          materialName: e.materialName ?? null,
+          color: e.color ?? null,
+          price: e.price ?? 0,
+          // The full option is stored so a capture can be re-applied later even if
+          // the schedule document has changed or is no longer loaded.
+          option: e.option ?? null,
+        }));
+
+        const record = await addCapture({
+          groupId: slugify(title),
+          title,
+          modelKey: model.key,
+          modelName: model.name,
+          libraryName: library?.name ?? null,
+          focusNodeName: selectedNode?.name ?? null,
+          focusNodeLabel: selectedNode ? labelFor(selectedNode) : null,
+          config,
+          totalPrice,
+          cameraPosition: pose?.position ?? null,
+          cameraTarget: pose?.target ?? null,
+          dataUrl,
+          thumbUrl,
+        });
+        setCaptureRefreshToken((t) => t + 1);
+        showToast(`Saved "${record.displayName}" to Saved Captures.`, 'success');
+      } catch (err) {
+        showToast(`Could not save: ${err.message}`, 'error');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [model, edits, totalPrice, library, selectedNode, labelFor, showToast]
+  );
+
+  const handleRestoreCapture = useCallback(
+    async (capture) => {
+      const editor = editorRef.current;
+      if (!editor || !graph) {
+        showToast('Load a model first, then re-apply a capture onto it.', 'error');
+        return;
+      }
+      setActiveTab('configurator');
+      setBusy(true);
+      let applied = 0;
+      const missing = [];
+      const nextEdits = {};
+      try {
+        for (const entry of capture.config ?? []) {
+          const node =
+            graph.nodes.find((n) => n.path === entry.nodePath) ?? graph.nodes.find((n) => n.name === entry.nodeName);
+          if (!node) {
+            missing.push(entry.nodeLabel ?? entry.nodeName);
+            continue;
+          }
+          const meshes = meshesFor(node, entry.scope === 'subtree' ? 'subtree' : 'smart');
+          if (entry.kind === 'option' && entry.option) {
+            await editor.applyOption(meshes, entry.option);
+          } else if (entry.kind === 'color' && entry.color) {
+            editor.applyColor(meshes, entry.color);
+          } else if (entry.kind === 'modelMaterial' && entry.materialName) {
+            const mat = graph.materials.find((m) => m.name === entry.materialName);
+            if (!mat) {
+              missing.push(entry.nodeLabel ?? entry.nodeName);
+              continue;
+            }
+            editor.applyExistingMaterial(meshes, mat.material);
+          } else if (entry.color) {
+            editor.applyColor(meshes, entry.color);
+          } else {
+            missing.push(entry.nodeLabel ?? entry.nodeName);
+            continue;
+          }
+          applied += 1;
+          nextEdits[node.id] = { ...entry, nodeId: node.id, nodeLabel: entry.nodeLabel ?? labelFor(node) };
+        }
+        setEdits(nextEdits);
+
+        if (capture.cameraPosition && capture.cameraTarget) {
+          const [px, py, pz] = capture.cameraPosition;
+          const [tx, ty, tz] = capture.cameraTarget;
+          const dist = Math.hypot(px - tx, py - ty, pz - tz) || 1;
+          setFlyTo({
+            position: capture.cameraPosition,
+            target: capture.cameraTarget,
+            minDistance: Math.max(dist * 0.1, 0.05),
+            maxDistance: dist * 6,
+            enablePan: true,
+            _t: Date.now(),
+          });
+        }
+
+        if (missing.length > 0) {
+          showToast(
+            `Re-applied ${applied} of ${capture.config.length} finishes. Not found in this model: ${missing
+              .slice(0, 3)
+              .join(', ')}${missing.length > 3 ? `, +${missing.length - 3} more` : ''}.`,
+            'error'
+          );
+        } else {
+          showToast(`Re-applied ${applied} finish${applied === 1 ? '' : 'es'} from "${capture.displayName}".`, 'success');
+        }
+      } finally {
+        setBusy(false);
+      }
+    },
+    [graph, meshesFor, labelFor, showToast]
+  );
+
+  // --- Render --------------------------------------------------------------------
+
+  const selectionBox = selectedNode?.box ?? null;
 
   return (
     <div className="app-shell">
       <div className="topbar">
         <div className="topbar-title">
-          <strong>3D House Configurator</strong>
-          <span>Upload any spec-compliant .glb to customize it</span>
+          <strong>3D Configurator</strong>
+          <span>{model ? model.name : 'Upload a .glb to begin'}</span>
         </div>
 
         <div className="tabs">
           <button className={`tab-btn ${activeTab === 'configurator' ? 'active' : ''}`} onClick={() => setActiveTab('configurator')}>
             Configurator
+          </button>
+          <button className={`tab-btn ${activeTab === 'inspector' ? 'active' : ''}`} onClick={() => setActiveTab('inspector')}>
+            Materials &amp; Textures
+            {graph && <em>{graph.stats.materialCount}</em>}
           </button>
           <button className={`tab-btn ${activeTab === 'captures' ? 'active' : ''}`} onClick={() => setActiveTab('captures')}>
             Saved Captures
@@ -217,45 +681,98 @@ export default function App() {
         </div>
 
         <div className="topbar-right">
-          {glbUrl && <div className="price-total">+${totalPrice.toLocaleString()}</div>}
-          {glbUrl && (
-            <button className="btn" onClick={() => resetForNewModel(null)}>
-              Upload different model
+          {/* Loading the client's finish schedule is a top-level task, so it gets a
+              top-level control rather than living only at the bottom of a
+              scrollable sidebar section. */}
+          {graph && (
+            <div className="schedule-status" title={library ? `${library.groups.length} groups, ${library.optionCount} options` : 'No material schedule loaded'}>
+              <span className={library ? 'ok' : 'none'}>
+                {library ? `Schedule: ${library.name}` : 'No material schedule'}
+              </span>
+              <ScheduleUploadButton onLoadFile={handleLoadLibraryFile} className="btn btn-sm">
+                {library ? 'Replace…' : 'Upload schedule…'}
+              </ScheduleUploadButton>
+            </div>
+          )}
+          {editedNodeIds.size > 0 && (
+            <>
+              <div className="edit-count">
+                {editedNodeIds.size} change{editedNodeIds.size === 1 ? '' : 's'}
+              </div>
+              {hasPricing && <div className="price-total">+${totalPrice.toLocaleString()}</div>}
+              <button className="btn btn-sm" onClick={handleResetAll}>
+                Revert all
+              </button>
+            </>
+          )}
+          {model && (
+            <button className="btn btn-sm" onClick={() => resetForNewModel(null)}>
+              Load another model
             </button>
           )}
         </div>
       </div>
 
-      {activeTab === 'configurator' ? (
+      {activeTab === 'configurator' && (
         <Configurator
           sceneViewerRef={sceneViewerRef}
-          glbUrl={glbUrl}
+          model={model}
+          graph={graph}
+          sceneMeta={sceneMeta}
           onFileChosen={handleFileChosen}
+          onSampleChosen={handleSampleChosen}
           onSceneReady={handleSceneReady}
           flyTo={flyTo}
-          groundY={groundY}
-          areas={areas}
-          activeAreaId={activeAreaId}
-          onAreaSelect={handleAreaSelect}
-          onZoneClick={handleZoneClick}
-          selectedZoneKey={selectedZoneKey}
-          activeCategory={activeCategory}
-          setActiveCategory={handleCategoryChange}
-          activeZone={activeZone}
-          setActiveZone={setActiveZone}
-          presentZoneKeys={presentZoneKeys}
-          genericAreas={genericAreas}
-          genericTints={genericTints}
-          onGenericTint={handleGenericTint}
-          onGenericReset={handleGenericReset}
-          selections={selections}
-          onPick={handlePick}
-          onCapture={handleCapture}
+          flying={flying}
+          onFlyStateChange={setFlying}
+          selectionBox={selectionBox}
+          selectedNode={selectedNode}
+          onPickInScene={handlePickInScene}
+          onHover={handleHover}
+          hoverName={hoverName}
+          onMiss={() => setHoverName(null)}
+          onOverview={handleOverview}
+          labelFor={labelFor}
+          optionCountFor={optionCountFor}
+          isScheduled={isScheduled}
+          editedNodeIds={editedNodeIds}
+          onSelectNode={handleSelectNode}
+          matchedGroups={matchedGroups}
+          edit={selectedNode ? edits[selectedNode.id] : null}
+          scope={scope}
+          scopeCounts={scopeCounts}
+          onScopeChange={setScope}
+          onApplyOption={handleApplyOption}
+          onApplyColor={handleApplyColor}
+          onApplyModelMaterial={handleApplyModelMaterial}
+          onResetNode={handleResetNode}
+          library={library}
+          libErrors={libErrors}
+          libWarnings={libWarnings}
+          coverage={coverage}
+          samples={SAMPLE_SCHEDULES}
+          workbook={workbook}
+          onSelectSheet={handleSelectSheet}
+          onLoadLibraryFile={handleLoadLibraryFile}
+          onLoadLibrarySample={handleLoadLibrarySample}
+          onClearLibrary={handleClearLibrary}
+          onSave={handleSave}
+          canSave={!!model && !!graph}
+          editCount={editedNodeIds.size}
+          busy={busy}
           toast={toast}
-          editingCapture={editingCapture}
         />
-      ) : (
-        <SavedCaptures refreshToken={captureRefreshToken} onEditCapture={handleEditCapture} />
+      )}
+
+      {activeTab === 'inspector' && <InspectorPanel graph={graph} onSelectNode={handleSelectNode} />}
+
+      {activeTab === 'captures' && (
+        <SavedCaptures
+          refreshToken={captureRefreshToken}
+          onRestore={handleRestoreCapture}
+          canRestore={!!graph}
+          currentModelKey={model?.key ?? null}
+        />
       )}
     </div>
   );
