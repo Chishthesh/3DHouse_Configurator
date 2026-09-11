@@ -703,11 +703,11 @@ export default function App() {
               scrollable sidebar section. */}
           {graph && (
             <div className="schedule-status" title={library ? `${library.groups.length} groups, ${library.optionCount} options` : 'No material schedule loaded'}>
-              <span className={library ? 'ok' : 'none'}>
+              {/* <span className={library ? 'ok' : 'none'}>
                 {library ? `Schedule: ${library.name}` : 'No material schedule'}
-              </span>
+              </span> */}
               <ScheduleUploadButton onLoadFile={handleLoadLibraryFile} className="btn btn-sm">
-                {library ? 'Replace…' : 'Upload schedule…'}
+                {library ? 'Upload schedule' : 'Upload schedule'}
               </ScheduleUploadButton>
             </div>
           )}
