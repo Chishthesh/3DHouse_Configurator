@@ -31,46 +31,126 @@ function AsBuiltSection({ graph, node }) {
     setThumbs(next);
   }, [graph, materials]);
 
-  if (materials.length === 0) return null;
+  // Split the part's materials the same way a schedule splits its columns: anything
+  // carrying an image becomes a Texture entry, anything else a Colour entry. That way
+  // this reads exactly like the Textures/Colours groups shown once a schedule is
+  // loaded — the only difference being that a .glb holds one finish per surface
+  // rather than a list to choose from.
+  const { textures, colours } = useMemo(() => {
+    const tex = [];
+    const col = [];
+    const seenTex = new Set();
+    const seenCol = new Set();
+
+    for (const mat of materials) {
+      if (mat.maps.length > 0) {
+        for (const map of mat.maps) {
+          if (seenTex.has(map.textureId)) continue;
+          seenTex.add(map.textureId);
+          const record = graph.textures.find((t) => t.id === map.textureId);
+          tex.push({
+            // The name the texture carries inside the .glb, exactly as the
+            // Materials & Textures tab reports it — not a prettified invention.
+            key: map.textureId,
+            name: map.name,
+            slot: map.slot,
+            size: record?.width && record?.height ? `${record.width}×${record.height}` : null,
+            materialName: mat.name,
+          });
+        }
+        continue;
+      }
+
+      // A self-illuminated surface ships with a black base colour, so the colour a
+      // viewer actually sees is the emissive one.
+      const emissive = mat.original.emissive;
+      const glows = emissive && emissive !== '#000000' && (!mat.original.color || mat.original.color === '#000000');
+      const hex = glows ? emissive : mat.original.color;
+      if (!hex) continue;
+      if (seenCol.has(hex)) continue;
+      seenCol.add(hex);
+      col.push({
+        key: hex,
+        hex: hex.toUpperCase(),
+        materialName: mat.name,
+        glows,
+        roughness: mat.original.roughness,
+        metalness: mat.original.metalness,
+      });
+    }
+    return { textures: tex, colours: col };
+  }, [graph, materials]);
+
+  if (textures.length === 0 && colours.length === 0) return null;
 
   return (
-    <section className="option-group">
-      <header>
-        <div>
-          <h3>In the model</h3>
-          <span className="group-cat">The finish this part was exported with</span>
-        </div>
-      </header>
-      <div className="option-list">
-        {materials.map((mat) => {
-          const baseMap = mat.maps.find((m) => m.slot === 'map') ?? mat.maps[0] ?? null;
-          const thumb = baseMap ? thumbs[baseMap.textureId] : null;
-          const glows = mat.original.emissive && mat.original.emissive !== '#000000';
-          return (
-            <div className="as-built-row" key={mat.id}>
-              <span className="option-swatch">
-                {thumb ? <img src={thumb} alt="" /> : <i style={{ background: mat.original.color ?? '#bbb' }} />}
-              </span>
-              <span className="option-text">
-                <span className="option-name">{mat.name}</span>
-                <span className="option-sub">
-                  {mat.original.color && <span className="option-hex">{mat.original.color.toUpperCase()}</span>}
-                  {mat.original.roughness != null && <span>rough {mat.original.roughness.toFixed(2)}</span>}
-                  {mat.original.metalness != null && <span>metal {mat.original.metalness.toFixed(2)}</span>}
-                  {glows && <span>emissive {mat.original.emissive.toUpperCase()}</span>}
-                </span>
-                {mat.maps.length > 0 && (
-                  <span className="option-notes">
-                    {mat.maps.map((m) => `${m.name} (${m.slot})`).join(', ')}
-                  </span>
-                )}
-                {mat.maps.length === 0 && <span className="option-notes">No texture — plain colour</span>}
-              </span>
+    <>
+      {textures.length > 0 && (
+        <section className="option-group">
+          <header>
+            <div>
+              <h3>Textures</h3>
+              <span className="group-cat">From the model file</span>
             </div>
-          );
-        })}
-      </div>
-    </section>
+            <span className="match-reason" title="The finish this part was exported with">
+              as exported
+            </span>
+          </header>
+          <div className="option-list">
+            {textures.map((t) => (
+              <div className="as-built-row" key={t.key}>
+                <span className="option-swatch">
+                  {thumbs[t.key] ? <img src={thumbs[t.key]} alt="" /> : <i style={{ background: '#d7dce1' }} />}
+                </span>
+                <span className="option-text">
+                  <span className="option-name" title={t.name}>
+                    {t.name}
+                  </span>
+                  <span className="option-sub">
+                    <span>textured</span>
+                    {t.size && <span>{t.size}</span>}
+                    {t.slot !== 'map' && <span>{t.slot}</span>}
+                  </span>
+                  <span className="option-notes">{t.materialName}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {colours.length > 0 && (
+        <section className="option-group">
+          <header>
+            <div>
+              <h3>Colours</h3>
+              <span className="group-cat">From the model file</span>
+            </div>
+            <span className="match-reason" title="The finish this part was exported with">
+              as exported
+            </span>
+          </header>
+          <div className="option-list">
+            {colours.map((c) => (
+              <div className="as-built-row" key={c.key}>
+                <span className="option-swatch">
+                  <i style={{ background: c.hex }} />
+                </span>
+                <span className="option-text">
+                  <span className="option-name">{c.hex}</span>
+                  <span className="option-sub">
+                    {c.glows && <span>emissive</span>}
+                    {c.roughness != null && <span>rough {c.roughness.toFixed(2)}</span>}
+                    {c.metalness != null && <span>metal {c.metalness.toFixed(2)}</span>}
+                  </span>
+                  <span className="option-notes">{c.materialName}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
   );
 }
 
