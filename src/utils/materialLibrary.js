@@ -651,7 +651,19 @@ export function groupsForNode(library, graph, nodeRecord) {
     }
     if (best) results.push({ group, ...best });
   }
-  return results.sort((a, b) => b.score - a.score);
+  if (results.length === 0) return results;
+
+  // Only the nearest source wins. Every group at the same level scores the same, so
+  // keeping just the best score keeps that whole level and discards the ones further
+  // up the tree.
+  //
+  // Without this, a part inherits from every matching ancestor at once. In the sample
+  // kitchen the cabinets are nested inside the countertop node, so a cabinet door
+  // ended up offering the countertop's stone colours alongside its own timber ones —
+  // two "Colours" headings, one of them meaningless for that surface. The badge on
+  // each group still says where the surviving options came from.
+  const bestScore = Math.max(...results.map((r) => r.score));
+  return results.filter((r) => r.score === bestScore);
 }
 
 /**
