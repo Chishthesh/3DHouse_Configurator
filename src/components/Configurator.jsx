@@ -115,7 +115,6 @@ export default function Configurator({
   onOverview,
   labelFor,
   optionCountFor,
-  isScheduled,
   editedNodeIds,
   onSelectNode,
   matchedGroups,
@@ -172,7 +171,6 @@ export default function Configurator({
                 selectedId={selectedNode?.id ?? null}
                 editedNodeIds={editedNodeIds}
                 optionCountFor={optionCountFor}
-                isScheduled={isScheduled}
                 onSelect={onSelectNode}
               />
             </div>

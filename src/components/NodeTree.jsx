@@ -3,10 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 // Browser for everything the .glb contains: top-level nodes and every sub-node under
 // them. Selecting a row is what drives the camera and the finish options, so this is
 // the app's primary navigation.
-export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, optionCountFor, isScheduled, onSelect }) {
+export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, optionCountFor, onSelect }) {
   const [query, setQuery] = useState('');
-  const [hideAutoNamed, setHideAutoNamed] = useState(false);
-  const [onlyScheduled, setOnlyScheduled] = useState(false);
   const [collapsed, setCollapsed] = useState(() => new Set());
 
   // Keep the selected row reachable when selection comes from clicking in the 3D view.
@@ -25,12 +23,6 @@ export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, o
     });
   }, [selectedId, graph]);
 
-  const passesFilters = (node) => {
-    if (hideAutoNamed && node.autoNamed) return false;
-    if (onlyScheduled && !isScheduled(node)) return false;
-    return true;
-  };
-
   const rows = useMemo(() => {
     if (!graph) return [];
     const q = query.trim().toLowerCase();
@@ -39,14 +31,12 @@ export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, o
     // their path — hunting for "tap" shouldn't require knowing where it lives.
     if (q) {
       return graph.nodes
-        .filter((n) => {
-          if (!passesFilters(n)) return false;
-          return (
+        .filter(
+          (n) =>
             n.name.toLowerCase().includes(q) ||
             labelFor(n).toLowerCase().includes(q) ||
             n.materialNames.some((m) => m.toLowerCase().includes(q))
-          );
-        })
+        )
         .map((n) => ({ node: n, indent: 0, hasChildren: false, showPath: true }));
     }
 
@@ -54,23 +44,12 @@ export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, o
     const walk = (id, indent) => {
       const node = graph.byId.get(id);
       if (!node) return;
-      const visibleChildren = node.childIds.filter((cid) => {
-        const child = graph.byId.get(cid);
-        return child && (passesFilters(child) || child.childIds.length > 0);
-      });
-      if (!passesFilters(node)) {
-        // Filtered-out group nodes still have to render their children somewhere, or
-        // filtering would hide whole branches.
-        visibleChildren.forEach((cid) => walk(cid, indent));
-        return;
-      }
-      out.push({ node, indent, hasChildren: visibleChildren.length > 0, showPath: false });
-      if (!collapsed.has(id)) visibleChildren.forEach((cid) => walk(cid, indent + 1));
+      out.push({ node, indent, hasChildren: node.childIds.length > 0, showPath: false });
+      if (!collapsed.has(id)) node.childIds.forEach((cid) => walk(cid, indent + 1));
     };
     graph.roots.forEach((id) => walk(id, 0));
     return out;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, query, hideAutoNamed, onlyScheduled, collapsed, labelFor, isScheduled]);
+  }, [graph, query, collapsed, labelFor]);
 
   const toggle = (id, e) => {
     e.stopPropagation();
@@ -84,9 +63,6 @@ export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, o
 
   if (!graph) return null;
 
-  const autoNamedCount = graph.nodes.filter((n) => n.autoNamed).length;
-  const scheduledCount = graph.nodes.filter((n) => isScheduled(n)).length;
-
   return (
     <div className="node-tree">
       <div className="tree-toolbar">
@@ -97,22 +73,10 @@ export default function NodeTree({ graph, labelFor, selectedId, editedNodeIds, o
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="tree-filters">
-          <label title={`${autoNamedCount} nodes in this file use default names like "Cube.003"`}>
-            <input type="checkbox" checked={hideAutoNamed} onChange={(e) => setHideAutoNamed(e.target.checked)} />
-            Hide auto-named ({autoNamedCount})
-          </label>
-          <label
-            title="Only parts the loaded schedule targets by name. Most other parts still inherit options through the material they use, which is why filtering on 'has any options' would show almost everything."
-          >
-            <input type="checkbox" checked={onlyScheduled} onChange={(e) => setOnlyScheduled(e.target.checked)} />
-            Only scheduled ({scheduledCount})
-          </label>
-        </div>
       </div>
 
       <div className="tree-scroll">
-        {rows.length === 0 && <div className="tree-empty">No parts match those filters.</div>}
+        {rows.length === 0 && <div className="tree-empty">No parts match that search.</div>}
         {rows.map(({ node, indent, hasChildren, showPath }) => {
           const optionCount = optionCountFor(node);
           const isEdited = editedNodeIds.has(node.id);

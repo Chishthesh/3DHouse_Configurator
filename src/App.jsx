@@ -374,9 +374,6 @@ export default function App() {
     [graph, hasOwnFinishes]
   );
 
-  // Stable identity: the node tree memoizes its rows against this.
-  const isScheduled = useCallback((node) => hasOwnFinishes(node.id), [hasOwnFinishes]);
-
   const scopeCounts = useMemo(() => {
     if (!selectedNode) return { smart: 0, subtree: 0 };
     return {
@@ -698,7 +695,6 @@ export default function App() {
           onOverview={handleOverview}
           labelFor={labelFor}
           optionCountFor={optionCountFor}
-          isScheduled={isScheduled}
           editedNodeIds={editedNodeIds}
           onSelectNode={handleSelectNode}
           matchedGroups={matchedGroups}
