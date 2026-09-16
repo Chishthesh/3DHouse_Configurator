@@ -465,32 +465,6 @@ export default function App() {
     [selectedNode, scope, meshesFor, labelFor, recordEdit, showToast]
   );
 
-  const handleApplyColor = useCallback(
-    (hex) => {
-      const editor = editorRef.current;
-      if (!editor || !selectedNode) return;
-      const meshes = meshesFor(selectedNode, scope);
-      if (meshes.length === 0) {
-        showToast(`Nothing to change: this selection has no surface at the "${scope}" scope.`, 'error');
-        return;
-      }
-      const meshCount = editor.applyColor(meshes, hex);
-      recordEdit(selectedNode, {
-        nodeId: selectedNode.id,
-        nodeName: selectedNode.name,
-        nodePath: selectedNode.path,
-        nodeLabel: labelFor(selectedNode),
-        scope,
-        kind: 'color',
-        color: hex,
-        optionName: `Custom ${hex.toUpperCase()}`,
-        price: 0,
-      });
-      showToast(`Custom colour applied to ${meshCount} surface${meshCount === 1 ? '' : 's'}.`, 'success');
-    },
-    [selectedNode, scope, meshesFor, labelFor, recordEdit, showToast]
-  );
-
   const handleApplyModelMaterial = useCallback(
     (materialRecord) => {
       const editor = editorRef.current;
@@ -622,6 +596,9 @@ export default function App() {
           if (entry.kind === 'option' && entry.option) {
             await editor.applyOption(meshes, entry.option);
           } else if (entry.kind === 'color' && entry.color) {
+            // The custom-colour picker has been removed from the UI, but captures
+            // saved while it existed still hold 'color' entries — they must keep
+            // re-applying, or an old saved scheme would come back incomplete.
             editor.applyColor(meshes, entry.color);
           } else if (entry.kind === 'modelMaterial' && entry.materialName) {
             const mat = graph.materials.find((m) => m.name === entry.materialName);
@@ -760,7 +737,6 @@ export default function App() {
           scopeCounts={scopeCounts}
           onScopeChange={setScope}
           onApplyOption={handleApplyOption}
-          onApplyColor={handleApplyColor}
           onApplyModelMaterial={handleApplyModelMaterial}
           onResetNode={handleResetNode}
           library={library}

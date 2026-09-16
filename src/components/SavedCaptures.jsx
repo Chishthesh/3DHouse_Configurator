@@ -70,7 +70,7 @@ export default function SavedCaptures({ refreshToken, onRestore, canRestore, cur
         <div className="captures-empty">
           <h3>No saved captures yet</h3>
           <p>
-            In the Configurator, pick a part, change its colour or material, then press <strong>Save changes</strong>. The
+            In the Configurator, pick a part, change its colour or material, then press <strong>Capture 2D Image</strong>. The
             snapshot and the exact set of finishes behind it are stored here.
           </p>
         </div>

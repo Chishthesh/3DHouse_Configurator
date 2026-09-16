@@ -11,7 +11,7 @@ function SaveDialog({ defaultName, editCount, busy, onCancel, onSave }) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <h3>Save changes</h3>
+        <h3>Capture 2D Image</h3>
         <p className="muted small">
           Stores the current view as an image together with the {editCount} finish change{editCount === 1 ? '' : 's'} behind
           it. Saving under a name you have used before adds a new version next to it, so alternatives stay side by side.
@@ -125,7 +125,6 @@ export default function Configurator({
   scopeCounts,
   onScopeChange,
   onApplyOption,
-  onApplyColor,
   onApplyModelMaterial,
   onResetNode,
   library,
@@ -246,7 +245,7 @@ export default function Configurator({
                 onClick={() => setSaveOpen(true)}
                 title="Save this view and the finishes applied"
               >
-                💾 Save changes
+                📷 Capture 2D Image
               </button>
             </div>
 
@@ -281,7 +280,6 @@ export default function Configurator({
         scopeCounts={scopeCounts}
         onScopeChange={onScopeChange}
         onApplyOption={onApplyOption}
-        onApplyColor={onApplyColor}
         onApplyModelMaterial={onApplyModelMaterial}
         onResetNode={onResetNode}
         onSelectNode={onSelectNode}

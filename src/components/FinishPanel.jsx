@@ -59,14 +59,12 @@ export default function FinishPanel({
   scopeCounts,
   onScopeChange,
   onApplyOption,
-  onApplyColor,
   onApplyModelMaterial,
   onResetNode,
   onSelectNode,
   library,
   busy,
 }) {
-  const [customColor, setCustomColor] = useState('#c9a227');
   const [showModelMaterials, setShowModelMaterials] = useState(false);
   // A textured finish has to fetch and decode its image, so there is a real gap
   // between the click and the change appearing. Without this the panel looks inert
@@ -201,8 +199,8 @@ export default function FinishPanel({
           {matchedGroups.length === 0 && (
             <div className="panel-note warn">
               {library
-                ? `The loaded schedule ("${library.name}") has no group matching this part. Use the custom colour below, or add a group whose match.nodes includes "${node.name}".`
-                : 'No material schedule loaded, so there are no catalogued finishes for this part yet. Use "Upload schedule…" in the top bar, or the custom colour below.'}
+                ? `The loaded schedule ("${library.name}") has no group matching this part. Add a group whose match.nodes includes "${node.name}" to offer finishes here.`
+                : 'No material schedule loaded, so there are no catalogued finishes for this part yet. Use "Upload schedule…" in the top bar to load one.'}
             </div>
           )}
 
@@ -238,27 +236,6 @@ export default function FinishPanel({
               </div>
             </section>
           ))}
-
-          <section className="option-group">
-            <header>
-              <div>
-                <h3>Custom colour</h3>
-                <span className="group-cat">Any colour, off-catalogue</span>
-              </div>
-            </header>
-            <div className="custom-color-row">
-              <input type="color" value={customColor} onChange={(e) => setCustomColor(e.target.value)} aria-label="Pick a colour" />
-              <code>{customColor.toUpperCase()}</code>
-              <button type="button" className="btn btn-primary" onClick={() => onApplyColor(customColor)} disabled={busy}>
-                Apply colour
-              </button>
-            </div>
-            {edit?.kind === 'color' && (
-              <p className="muted small">
-                Currently showing custom colour <code>{edit.color.toUpperCase()}</code>.
-              </p>
-            )}
-          </section>
 
           <section className="option-group">
             <header>
