@@ -499,20 +499,6 @@ code {
   color: var(--text);
 }
 
-.lib-samples > summary {
-  font-size: 10.5px;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 2px 0;
-  list-style-position: inside;
-}
-.lib-samples > summary:hover {
-  color: var(--text);
-}
-.lib-samples > .lib-actions {
-  padding-top: 5px;
-}
-
 .lib-head {
   display: flex;
   align-items: center;
@@ -545,12 +531,6 @@ code {
   color: var(--text-muted);
   word-break: break-all;
   margin-top: 2px;
-}
-
-.lib-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
 }
 
 .lib-issues {

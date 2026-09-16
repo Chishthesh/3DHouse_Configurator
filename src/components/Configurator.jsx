@@ -102,7 +102,6 @@ export default function Configurator({
   graph,
   sceneMeta,
   onFileChosen,
-  onSampleChosen,
   onSceneReady,
   flyTo,
   flying,
@@ -131,11 +130,9 @@ export default function Configurator({
   libErrors,
   libWarnings,
   coverage,
-  samples,
   workbook,
   onSelectSheet,
   onLoadLibraryFile,
-  onLoadLibrarySample,
   onClearLibrary,
   onSave,
   canSave,
@@ -185,12 +182,10 @@ export default function Configurator({
                 errors={libErrors}
                 warnings={libWarnings}
                 coverage={coverage}
-                samples={samples}
                 workbook={workbook}
                 onSelectSheet={onSelectSheet}
                 graph={graph}
                 onLoadFile={onLoadLibraryFile}
-                onLoadSample={onLoadLibrarySample}
                 onClear={onClearLibrary}
                 onSelectNode={onSelectNode}
               />
@@ -222,7 +217,7 @@ export default function Configurator({
           onFlyStateChange={onFlyStateChange}
         />
 
-        {!model && <UploadPanel onFileChosen={onFileChosen} onSampleChosen={onSampleChosen} />}
+        {!model && <UploadPanel onFileChosen={onFileChosen} />}
         {model && <LoadingOverlay modelName={model.name} sizeMB={model.sizeMB} />}
 
         {model && graph && (

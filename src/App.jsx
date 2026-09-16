@@ -12,12 +12,6 @@ import { extractGlbTextures } from './utils/extractGlbTextures.js';
 import { frameForBox, frameOpeningShot } from './utils/cameraFraming.js';
 import { addCapture, makeThumbnail, slugify } from './utils/captureStore.js';
 
-const SAMPLE_SCHEDULES = [
-  { label: 'Configurator Parameters (Excel)', url: '/material-libraries/configurator-parameters.xlsx' },
-  { label: 'Kitchen schedule (JSON)', url: '/material-libraries/modern-kitchen-schedule.json' },
-  { label: 'Kitchen schedule (CSV)', url: '/material-libraries/modern-kitchen-schedule.csv' },
-];
-
 export default function App() {
   const [activeTab, setActiveTab] = useState('configurator');
 
@@ -90,11 +84,6 @@ export default function App() {
         sizeMB: file.size / 1024 / 1024,
       });
     },
-    [resetForNewModel]
-  );
-
-  const handleSampleChosen = useCallback(
-    (sample) => resetForNewModel({ url: sample.url, name: sample.name, key: sample.url, isBlob: false }),
     [resetForNewModel]
   );
 
@@ -239,24 +228,6 @@ export default function App() {
         setLibrary(null);
         setWorkbook(null);
         setLibErrors([`Could not read the file: ${err.message}`]);
-      }
-    },
-    [applyParsedLibrary, readSchedule]
-  );
-
-  const handleLoadLibrarySample = useCallback(
-    async (sample) => {
-      try {
-        const res = await fetch(sample.url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const name = sample.url.split('/').pop();
-        workbookFileRef.current = isWorkbookName(name) ? { blob, name } : null;
-        applyParsedLibrary(await readSchedule(blob, name), sample.url);
-      } catch (err) {
-        setLibrary(null);
-        setWorkbook(null);
-        setLibErrors([`Could not fetch ${sample.url}: ${err.message}`]);
       }
     },
     [applyParsedLibrary, readSchedule]
@@ -714,7 +685,6 @@ export default function App() {
           graph={graph}
           sceneMeta={sceneMeta}
           onFileChosen={handleFileChosen}
-          onSampleChosen={handleSampleChosen}
           onSceneReady={handleSceneReady}
           flyTo={flyTo}
           flying={flying}
@@ -743,11 +713,9 @@ export default function App() {
           libErrors={libErrors}
           libWarnings={libWarnings}
           coverage={coverage}
-          samples={SAMPLE_SCHEDULES}
           workbook={workbook}
           onSelectSheet={handleSelectSheet}
           onLoadLibraryFile={handleLoadLibraryFile}
-          onLoadLibrarySample={handleLoadLibrarySample}
           onClearLibrary={handleClearLibrary}
           onSave={handleSave}
           canSave={!!model && !!graph}

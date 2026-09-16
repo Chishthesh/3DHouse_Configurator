@@ -2,11 +2,9 @@ import ScheduleUploadButton from './ScheduleUploadButton.jsx';
 
 export default function LibraryPanel({
   library,
-  samples,
   workbook,
   onSelectSheet,
   onLoadFile,
-  onLoadSample,
   onClear,
 }) {
   return (
@@ -37,13 +35,6 @@ export default function LibraryPanel({
           </label>
         )}
 
-        <div className="lib-actions">
-          {samples.map((s) => (
-            <button key={s.url} className="btn btn-sm" type="button" onClick={() => onLoadSample(s)}>
-              {s.label}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

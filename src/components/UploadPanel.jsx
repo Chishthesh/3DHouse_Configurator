@@ -1,11 +1,6 @@
 import React, { useRef, useState } from 'react';
 
-const SAMPLES = [
-  { label: 'Modern kitchen (client model)', url: '/models/modern_kitchen.glb', name: 'modern_kitchen.glb' },
-  { label: 'Sample house', url: '/models/sample-house.glb', name: 'sample-house.glb' },
-];
-
-export default function UploadPanel({ onFileChosen, onSampleChosen }) {
+export default function UploadPanel({ onFileChosen }) {
   const inputRef = useRef(null);
   const [error, setError] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -45,8 +40,8 @@ export default function UploadPanel({ onFileChosen, onSampleChosen }) {
       >
         <h2>Upload a 3D model</h2>
         <p>
-          Drop a <strong>.glb</strong> here, or choose a file. The configurator reads the model itself — its nodes, sub-nodes,
-          materials and textures — so no particular naming convention is required.
+          Drop a <strong>.glb</strong> here, or choose a file. The configurator reads the model itself - its nodes, sub-nodes,
+          materials and textures - so no particular naming convention is required.
         </p>
 
         <input
@@ -64,11 +59,6 @@ export default function UploadPanel({ onFileChosen, onSampleChosen }) {
           <button className="btn btn-primary" type="button" onClick={() => inputRef.current?.click()}>
             Choose .glb file
           </button>
-          {SAMPLES.map((s) => (
-            <button key={s.url} className="btn" type="button" onClick={() => onSampleChosen(s)}>
-              {s.label}
-            </button>
-          ))}
         </div>
 
         {error && <div className="upload-error">{error}</div>}
