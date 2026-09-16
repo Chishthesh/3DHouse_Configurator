@@ -53,6 +53,7 @@ code {
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .topbar {
@@ -60,10 +61,17 @@ code {
   align-items: center;
   gap: 16px;
   padding: 0 14px;
-  height: 52px;
+  /* Was a fixed height with no wrapping, which made the bar the widest thing on the
+     page: once the schedule name and its buttons no longer fitted, the bar pushed the
+     document wider than the window and everything else inherited the overflow. */
+  min-height: 52px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding-block: 6px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
   flex: 0 0 auto;
+  min-width: 0;
   z-index: 20;
 }
 
@@ -92,6 +100,8 @@ code {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 3px;
+  /* The tabs keep their size; the schedule name beside them is what gives way. */
+  flex: 0 0 auto;
 }
 
 .tab-btn {
@@ -128,7 +138,10 @@ code {
   margin-left: auto;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .edit-count {
@@ -143,8 +156,13 @@ code {
   padding-right: 8px;
   border-right: 1px solid var(--border);
   max-width: 340px;
+  /* min-width:0 is what actually lets the name ellipsis instead of forcing the bar
+     wide — max-width alone caps it but never allows it to shrink. */
+  min-width: 0;
+  flex: 0 1 auto;
 }
 .schedule-status > span {
+  min-width: 0;
   font-size: 11.5px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -258,6 +276,11 @@ code {
   min-height: 0;
   display: grid;
   grid-template-columns: 292px minmax(0, 1fr) 344px;
+  /* An explicit row that is allowed to shrink below its content. Without it the row
+     is sized BY its content, and the 3D canvas carries an explicit pixel width and
+     height — so once the window got smaller the canvas held the row open at its old
+     size, pushing the right-hand panel off-screen and the view hint below the fold. */
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .sidebar,
@@ -608,7 +631,13 @@ code {
 
 .viewport {
   position: relative;
+  /* Both minimums must be 0 or the grid item refuses to shrink under the canvas,
+     which carries an explicit pixel size and would otherwise hold the row open.
+     overflow:hidden is scoped to the viewport only — it clips the canvas for the
+     frame or two before the renderer catches up, and never any UI. */
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: #cfdce8;
 }
 .viewport canvas {
