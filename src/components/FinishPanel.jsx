@@ -1,5 +1,78 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ancestorChain } from '../utils/nodeGraph.js';
+import { ancestorChain, textureThumbnail } from '../utils/nodeGraph.js';
+
+/**
+ * What the selected part is made of according to the .glb itself — the finish the
+ * artist exported, before anyone picks anything.
+ *
+ * Shown when no schedule has been loaded yet. Until a document arrives there are no
+ * options to offer, and an empty panel gives the user nothing to go on; the model
+ * already knows the answer to "what is this made of?", so it is worth saying. Values
+ * come from the snapshot taken when the file loaded, so they stay the as-delivered
+ * figures even after edits.
+ */
+function AsBuiltSection({ graph, node }) {
+  const materials = useMemo(
+    () => node.materialIds.map((id) => graph.materials.find((m) => m.id === id)).filter(Boolean),
+    [graph, node]
+  );
+
+  const [thumbs, setThumbs] = useState({});
+  useEffect(() => {
+    const next = {};
+    for (const mat of materials) {
+      for (const map of mat.maps) {
+        if (next[map.textureId]) continue;
+        const record = graph.textures.find((t) => t.id === map.textureId);
+        const url = record && textureThumbnail(record.texture, 96);
+        if (url) next[map.textureId] = url;
+      }
+    }
+    setThumbs(next);
+  }, [graph, materials]);
+
+  if (materials.length === 0) return null;
+
+  return (
+    <section className="option-group">
+      <header>
+        <div>
+          <h3>In the model</h3>
+          <span className="group-cat">The finish this part was exported with</span>
+        </div>
+      </header>
+      <div className="option-list">
+        {materials.map((mat) => {
+          const baseMap = mat.maps.find((m) => m.slot === 'map') ?? mat.maps[0] ?? null;
+          const thumb = baseMap ? thumbs[baseMap.textureId] : null;
+          const glows = mat.original.emissive && mat.original.emissive !== '#000000';
+          return (
+            <div className="as-built-row" key={mat.id}>
+              <span className="option-swatch">
+                {thumb ? <img src={thumb} alt="" /> : <i style={{ background: mat.original.color ?? '#bbb' }} />}
+              </span>
+              <span className="option-text">
+                <span className="option-name">{mat.name}</span>
+                <span className="option-sub">
+                  {mat.original.color && <span className="option-hex">{mat.original.color.toUpperCase()}</span>}
+                  {mat.original.roughness != null && <span>rough {mat.original.roughness.toFixed(2)}</span>}
+                  {mat.original.metalness != null && <span>metal {mat.original.metalness.toFixed(2)}</span>}
+                  {glows && <span>emissive {mat.original.emissive.toUpperCase()}</span>}
+                </span>
+                {mat.maps.length > 0 && (
+                  <span className="option-notes">
+                    {mat.maps.map((m) => `${m.name} (${m.slot})`).join(', ')}
+                  </span>
+                )}
+                {mat.maps.length === 0 && <span className="option-notes">No texture — plain colour</span>}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
 
 // null means the document carried no price for this option, which is not the same as
 // quoting zero — so nothing is shown rather than an unearned "Included".
@@ -200,9 +273,11 @@ export default function FinishPanel({
             <div className="panel-note warn">
               {library
                 ? `The loaded schedule ("${library.name}") has no group matching this part. Add a group whose match.nodes includes "${node.name}" to offer finishes here.`
-                : 'No material schedule loaded, so there are no catalogued finishes for this part yet. Use "Upload schedule…" in the top bar to load one.'}
+                : 'No material schedule loaded, so there is nothing to choose from yet — below is the finish this part already has. Use "Upload schedule…" in the top bar to load the options.'}
             </div>
           )}
+
+          {!library && <AsBuiltSection graph={graph} node={node} />}
 
           {matchedGroups.map(({ group, reason }) => (
             <section className="option-group" key={group.id}>

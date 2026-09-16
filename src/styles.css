@@ -1094,6 +1094,18 @@ code {
   font-weight: 500;
 }
 
+/* Same shape as an option row, but it is information rather than a choice — no
+   hover, no pointer, no click target. */
+.as-built-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 8px;
+  padding: 7px 9px;
+}
+
 .model-mat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
