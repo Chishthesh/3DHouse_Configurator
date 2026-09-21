@@ -122,6 +122,10 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    // The root would otherwise be a bare 404. Sending it to Swagger means any entry
+    // point — F5, a bookmark, or typing the host by hand — lands somewhere useful.
+    app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 }
 
 app.UseCors("web");
