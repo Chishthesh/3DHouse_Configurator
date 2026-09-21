@@ -71,7 +71,10 @@ builder.Services.AddAuthorization(options =>
 // --- Storage and queue --------------------------------------------------------------
 var blobOptions = builder.Configuration.GetSection("Storage").Get<BlobStorageOptions>() ?? new BlobStorageOptions();
 builder.Services.AddSingleton(blobOptions);
-builder.Services.AddSingleton<IBlobStorage>(_ => new AzureBlobStorage(blobOptions));
+if (string.IsNullOrWhiteSpace(blobOptions.ConnectionString))
+    builder.Services.AddSingleton<IBlobStorage, UnconfiguredBlobStorage>();
+else
+    builder.Services.AddSingleton<IBlobStorage>(_ => new AzureBlobStorage(blobOptions));
 
 var queueOptions = builder.Configuration.GetSection("Queue").Get<QueueOptions>() ?? new QueueOptions();
 builder.Services.AddSingleton(queueOptions);

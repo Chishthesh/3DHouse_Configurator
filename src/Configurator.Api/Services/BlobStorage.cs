@@ -139,6 +139,30 @@ public class AzureBlobStorage : IBlobStorage
     }
 }
 
+/// <summary>
+/// Stands in when Storage:ConnectionString is not set, so the API is usable before
+/// Azure is wired up. Endpoints that only read the database keep working; anything
+/// that genuinely needs a URL fails with a message naming the missing setting rather
+/// than an ArgumentNullException thrown from inside the Azure SDK.
+/// </summary>
+public class UnconfiguredBlobStorage : IBlobStorage
+{
+    private const string Message =
+        "Azure Blob Storage is not configured. Set Storage:ConnectionString (and Storage:Container) " +
+        "in appsettings.Development.json or user secrets.";
+
+    private static InvalidOperationException Fail() => new(Message);
+
+    public UploadTicket CreateUploadTicket(string blobPath, TimeSpan? lifetime = null) => throw Fail();
+    public string CreateReadUrl(string blobPath, TimeSpan? lifetime = null) => throw Fail();
+    public Task<bool> ExistsAsync(string blobPath, CancellationToken ct = default) => throw Fail();
+    public Task DeleteAsync(string blobPath, CancellationToken ct = default) => throw Fail();
+    public Task DeletePrefixAsync(string prefix, CancellationToken ct = default) => throw Fail();
+    public Task<Stream> OpenReadAsync(string blobPath, CancellationToken ct = default) => throw Fail();
+    public Task UploadAsync(string blobPath, Stream content, string contentType, CancellationToken ct = default)
+        => throw Fail();
+}
+
 /// <summary>Canonical blob paths, kept in one place so the API and the render worker agree.</summary>
 public static class BlobPaths
 {
