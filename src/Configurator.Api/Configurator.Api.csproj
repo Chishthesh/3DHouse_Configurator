@@ -5,6 +5,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+
+    <!--
+      No native apphost .exe is produced; the app is launched as
+      `dotnet Configurator.Api.dll`. An Application Control policy on the build
+      machine blocks freshly built executables, which stops `dotnet run` dead.
+      Running through the already-trusted dotnet host sidesteps that, and costs
+      nothing — publishing and containers use the same launch form.
+    -->
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>
