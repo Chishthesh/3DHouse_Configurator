@@ -3,6 +3,7 @@ import { captures as capturesApi, configurations as configApi, models as modelsA
 import { parseMaterialLibrary } from '../../utils/materialLibrary.js';
 import { normalizeKey } from '../../utils/nodeGraph.js';
 import { Empty, ErrorBox, Loading, Modal, useToast } from '../../components/uh/Ui.jsx';
+import ScheduleUpload from '../../components/uh/ScheduleUpload.jsx';
 import { ArrowLeftIcon, ArrowRightIcon, SaveIcon } from '../../components/uh/Icons.jsx';
 import { navigate } from '../../router/Router.jsx';
 
@@ -232,11 +233,7 @@ export default function ImageConfiguratorPage({ modelId }) {
     <div className="uh-cfg">
       <div className="uh-cfg-stage">
         <div className="uh-stage-canvas">
-          <div
-            className="uh-stage-frame"
-            ref={stageRef}
-            style={{ '--shot-aspect': `${view.width || 16} / ${view.height || 10}` }}
-          >
+          <div className="uh-stage-frame" ref={stageRef}>
             <img src={view.baseImageUrl} alt={view.name} />
             {activeLayers.map((l) => (
               <img key={l.key} className="layer" src={l.url} alt="" />
@@ -282,6 +279,28 @@ export default function ImageConfiguratorPage({ modelId }) {
               ? 'Nothing in this view can be changed.'
               : `${nodes.length} part${nodes.length === 1 ? '' : 's'} in this view`}
           </p>
+
+          {/* The finish schedule lives with the model and is uploaded here — once,
+              not per session. Replacing it supersedes the previous version. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: '#77819c', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {model.schedule
+                ? `${model.schedule.fileName} · ${model.schedule.groupCount} groups, ${model.schedule.optionCount} options`
+                : 'No schedule attached'}
+            </span>
+            <ScheduleUpload
+              modelId={modelId}
+              current={!!model.schedule}
+              className={`uh-btn sm${model.schedule ? '' : ' gold'}`}
+              compact
+              onAttached={(res) => {
+                toast.show(`Schedule attached — ${res.groupCount} groups, ${res.optionCount} options.`, 'success');
+                setSelections({});
+                load();
+              }}
+              onError={(err) => toast.show(`Could not attach the schedule: ${err.message}`, 'error')}
+            />
+          </div>
         </div>
 
         <div className="uh-node-list">

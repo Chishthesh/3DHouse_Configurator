@@ -751,7 +751,10 @@ export default function App({ studio = null }) {
           {/* Loading the client's finish schedule is a top-level task, so it gets a
               top-level control rather than living only at the bottom of a
               scrollable sidebar section. */}
-          {graph && (
+          {/* The schedule belongs to the model and is uploaded in the Image
+              Configurator, so the studio shows what is attached but does not offer
+              a second, browser-only way to load one. */}
+          {graph && !inStudio && (
             <div className="schedule-status" title={library ? `${library.groups.length} groups, ${library.optionCount} options` : 'No material schedule loaded'}>
               <span className={library ? 'ok' : 'none'}>
                 {library ? `Schedule: ${library.name}` : 'No material schedule'}
@@ -820,6 +823,7 @@ export default function App({ studio = null }) {
           onClearLibrary={handleClearLibrary}
           onSave={handleSave}
           canSave={!!model && !!graph}
+          hideModelTree={inStudio}
           editCount={editedNodeIds.size}
           busy={busy}
           toast={toast}

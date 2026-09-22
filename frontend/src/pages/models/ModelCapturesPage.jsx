@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   captures as capturesApi,
   models as modelsApi,
-  attachSchedule,
+
   CaptureStatus,
   CAPTURE_STATUS_LABEL,
   CAPTURE_TIER_LABEL,
@@ -10,7 +10,6 @@ import {
   LAYER_STATUS_LABEL,
   LayerStatus,
 } from '../../api/endpoints.js';
-import { parseMaterialWorkbook, parseMaterialLibrary } from '../../utils/materialLibrary.js';
 import { Badge, Empty, ErrorBox, Loading, Modal, formatDate, useToast } from '../../components/uh/Ui.jsx';
 import { ArrowLeftIcon, CameraIcon, CheckIcon, SheetIcon, TrashIcon } from '../../components/uh/Icons.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
@@ -32,8 +31,6 @@ export default function ModelCapturesPage({ modelId }) {
   const [selected, setSelected] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [attaching, setAttaching] = useState(false);
-  const fileRef = useRef(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -109,33 +106,6 @@ export default function ModelCapturesPage({ modelId }) {
     }
   }
 
-  // --- Schedule -----------------------------------------------------------------------
-
-  async function handleScheduleFile(file) {
-    if (!file) return;
-    setAttaching(true);
-    try {
-      // Parsed here by the same reader the 3D configurator uses, so the stored
-      // option data and what the studio showed cannot drift apart.
-      const result = /\.xlsx?$/i.test(file.name)
-        ? await parseMaterialWorkbook(await file.arrayBuffer(), file.name)
-        : await parseMaterialLibrary(await file.text(), file.name);
-
-      if (!result.library) throw new Error(result.errors?.[0] ?? 'the file could not be read');
-
-      // The raw shape is stored, not the finalized library — see finalizeShape().
-      const shape = { ...result.shape, optionCount: result.library.optionCount };
-      const res = await attachSchedule({ modelId, file, shape });
-      toast.show(`Schedule attached — ${res.groupCount} groups, ${res.optionCount} options.`, 'success');
-      load();
-    } catch (err) {
-      toast.show(`Could not attach the schedule: ${err.message}`, 'error');
-    } finally {
-      setAttaching(false);
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  }
-
   // --- Render --------------------------------------------------------------------------
 
   if (error) {
@@ -184,20 +154,6 @@ export default function ModelCapturesPage({ modelId }) {
             </button>
           )}
           {can.publish && (
-            <label className={`uh-btn ${model.schedule ? '' : 'gold'}`} style={{ cursor: attaching ? 'wait' : 'pointer' }}>
-              <SheetIcon size={16} />
-              {attaching ? 'Attaching…' : model.schedule ? 'Replace schedule' : 'Attach schedule'}
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".xlsx,.xlsm,.csv,.json"
-                style={{ display: 'none' }}
-                disabled={attaching}
-                onChange={(e) => handleScheduleFile(e.target.files?.[0])}
-              />
-            </label>
-          )}
-          {can.publish && (
             <button className="uh-btn gold" disabled={busy || draftIds.length === 0} onClick={() => publish(draftIds)}>
               <CheckIcon size={16} />
               Save All ({draftIds.length})
@@ -221,8 +177,9 @@ export default function ModelCapturesPage({ modelId }) {
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', color: '#8a6a1d' }}>
             <SheetIcon size={18} />
             <span>
-              No Configurator Parameters workbook is attached yet. Angles can still be captured — attach the workbook
-              when it is ready and layer rendering picks up the published captures automatically.
+              No Configurator Parameters workbook is attached yet. Angles can still be captured — upload the workbook
+              from the <strong>Image Configurator</strong> when it is ready, and layer rendering picks up the published
+              captures automatically.
             </span>
           </div>
         )}

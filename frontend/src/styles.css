@@ -283,6 +283,11 @@ code {
   grid-template-rows: minmax(0, 1fr);
 }
 
+/* Capture studio: no model tree, so the viewport takes the space it used. */
+.configurator.no-tree {
+  grid-template-columns: minmax(0, 1fr) 344px;
+}
+
 .sidebar,
 .finish-panel {
   background: var(--panel);

@@ -135,6 +135,10 @@ export default function Configurator({
   onClearLibrary,
   onSave,
   canSave,
+  // The capture studio is about framing shots, not browsing the model, so it drops
+  // the tree entirely. That also removes the tallest thing in the layout — the tree
+  // is what pushed the page past the viewport and introduced a scrollbar.
+  hideModelTree = false,
   editCount,
   busy,
   toast,
@@ -159,7 +163,8 @@ export default function Configurator({
   }, [onMiss, onOverview]);
 
   return (
-    <div className="configurator">
+    <div className={`configurator${hideModelTree ? ' no-tree' : ''}`}>
+      {!hideModelTree && (
       <aside className="sidebar">
         {graph ? (
           <>
@@ -197,6 +202,7 @@ export default function Configurator({
           </div>
         )}
       </aside>
+      )}
 
       <div className="viewport" {...dropHandlers}>
         <SceneViewer
