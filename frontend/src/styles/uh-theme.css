@@ -1,0 +1,1367 @@
+/* ============================================================================
+   UH Homes — application shell, authentication and the two modules.
+
+   Every class here is prefixed `uh-` so it cannot collide with the existing
+   3D configurator stylesheet, which keeps its own look inside the capture
+   studio canvas area.
+   ========================================================================== */
+
+:root {
+  --uh-navy: #1b2038;
+  --uh-navy-deep: #161b30;
+  --uh-navy-soft: #232945;
+  --uh-field: #2c3150;
+  --uh-line: rgba(255, 255, 255, 0.08);
+  --uh-gold: #e9c46a;
+  --uh-gold-strong: #efcd78;
+  --uh-gold-dim: #8d7c4f;
+  --uh-text: #ffffff;
+  --uh-muted: #8e9ab5;
+  --uh-muted-dim: #6f7a99;
+  --uh-danger: #e2645f;
+  --uh-success: #63c08a;
+  --uh-radius: 10px;
+  --uh-font: 'Segoe UI', system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ---------------------------------------------------------------- auth screens */
+
+.uh-auth {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background: radial-gradient(1200px 600px at 50% -10%, #f4f5f8 0%, #ffffff 60%);
+  font-family: var(--uh-font);
+  box-sizing: border-box;
+}
+
+.uh-auth-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--uh-navy);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(20, 25, 45, 0.28), 0 2px 8px rgba(20, 25, 45, 0.12);
+}
+
+.uh-auth-body {
+  padding: 44px 48px 40px;
+}
+
+.uh-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.uh-brand-mark {
+  display: block;
+  flex: none;
+}
+
+.uh-brand-name {
+  color: var(--uh-text);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: 3.5px;
+}
+
+.uh-brand-rule {
+  width: 48px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--uh-gold);
+  margin: 22px auto 26px;
+}
+
+.uh-auth-title {
+  margin: 0;
+  text-align: center;
+  color: var(--uh-text);
+  font-size: 31px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.uh-auth-subtitle {
+  margin: 8px 0 30px;
+  text-align: center;
+  color: var(--uh-muted);
+  font-size: 15px;
+}
+
+.uh-field {
+  margin-bottom: 20px;
+}
+
+.uh-label {
+  display: block;
+  margin-bottom: 9px;
+  color: #eef1f7;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.uh-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--uh-field);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.uh-input-wrap:focus-within {
+  border-color: var(--uh-gold);
+  box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.16);
+}
+
+.uh-input-wrap.invalid {
+  border-color: var(--uh-danger);
+}
+
+.uh-input-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  color: #7b849f;
+}
+
+.uh-input {
+  flex: 1;
+  min-width: 0;
+  padding: 14px 14px 14px 0;
+  border: 0;
+  background: transparent;
+  color: var(--uh-text);
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.uh-input::placeholder {
+  color: #737d99;
+}
+
+/* Chrome paints its own pale background over autofilled inputs; the long inset
+   shadow is the only reliable way to keep the field dark. */
+.uh-input:-webkit-autofill,
+.uh-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--uh-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--uh-field) inset;
+  caret-color: var(--uh-text);
+}
+
+.uh-eye {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #8b94ad;
+  cursor: pointer;
+  border-radius: 0 8px 8px 0;
+}
+
+.uh-eye:hover {
+  color: var(--uh-gold);
+}
+
+.uh-forgot-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: -6px 0 22px;
+}
+
+.uh-link-gold {
+  color: var(--uh-gold);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.uh-link-gold:hover {
+  text-decoration: underline;
+}
+
+.uh-btn-primary {
+  width: 100%;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--uh-gold-strong);
+  color: #23283f;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.uh-btn-primary:hover:not(:disabled) {
+  background: #f4d68a;
+}
+
+.uh-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.uh-btn-primary:disabled {
+  background: var(--uh-gold-dim);
+  color: #2b3048;
+  cursor: not-allowed;
+}
+
+.uh-back-row {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.uh-back-link {
+  color: #9aa6c2;
+  font-size: 15px;
+  text-decoration: none;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.uh-back-link:hover {
+  color: var(--uh-gold);
+}
+
+.uh-auth-footer {
+  padding: 16px;
+  text-align: center;
+  background: var(--uh-navy-deep);
+  border-top: 1px solid var(--uh-line);
+  color: var(--uh-muted-dim);
+  font-size: 13px;
+}
+
+.uh-alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.uh-alert.error {
+  background: rgba(226, 100, 95, 0.12);
+  border: 1px solid rgba(226, 100, 95, 0.35);
+  color: #f3b3b0;
+}
+
+.uh-alert.success {
+  background: rgba(99, 192, 138, 0.12);
+  border: 1px solid rgba(99, 192, 138, 0.35);
+  color: #a6e0bf;
+}
+
+.uh-alert.info {
+  background: rgba(233, 196, 106, 0.1);
+  border: 1px solid rgba(233, 196, 106, 0.3);
+  color: #e6d3a4;
+}
+
+.uh-hint {
+  margin: 8px 2px 0;
+  color: var(--uh-muted);
+  font-size: 13px;
+}
+
+.uh-spinner {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid rgba(35, 40, 63, 0.35);
+  border-top-color: #23283f;
+  animation: uh-spin 0.7s linear infinite;
+}
+
+.uh-spinner.light {
+  border-color: rgba(255, 255, 255, 0.25);
+  border-top-color: var(--uh-gold);
+}
+
+@keyframes uh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------- app shell */
+
+.uh-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f7;
+  font-family: var(--uh-font);
+}
+
+.uh-nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  height: 60px;
+  padding: 0 22px;
+  background: var(--uh-navy);
+  color: var(--uh-text);
+  box-shadow: 0 1px 0 var(--uh-line);
+}
+
+.uh-nav .uh-brand-name {
+  font-size: 18px;
+  letter-spacing: 2.5px;
+}
+
+.uh-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.uh-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 7px;
+  color: #b9c2d8;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.uh-nav-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.uh-nav-link.active {
+  background: rgba(233, 196, 106, 0.14);
+  color: var(--uh-gold);
+}
+
+.uh-nav-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.uh-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.uh-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--uh-gold);
+  color: #23283f;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.uh-user-meta {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.uh-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uh-user-role {
+  font-size: 12px;
+  color: var(--uh-muted);
+}
+
+.uh-signout {
+  flex: none;
+  padding: 7px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 7px;
+  background: transparent;
+  color: #cdd5e6;
+  font-family: inherit;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.uh-signout:hover {
+  border-color: var(--uh-gold);
+  color: var(--uh-gold);
+}
+
+.uh-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.uh-page {
+  flex: 1;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 26px 24px 48px;
+  box-sizing: border-box;
+}
+
+.uh-page-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.uh-page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1d2238;
+}
+
+.uh-page-sub {
+  margin: 5px 0 0;
+  color: #67718c;
+  font-size: 14.5px;
+}
+
+.uh-page-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ---------------------------------------------------------------- buttons (light surfaces) */
+
+.uh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid #d3d8e3;
+  border-radius: 8px;
+  background: #fff;
+  color: #2a3048;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.uh-btn:hover:not(:disabled) {
+  border-color: #adb5c7;
+  background: #f7f8fb;
+}
+
+.uh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.uh-btn.gold {
+  background: var(--uh-gold-strong);
+  border-color: var(--uh-gold-strong);
+  color: #23283f;
+  font-weight: 600;
+}
+
+.uh-btn.gold:hover:not(:disabled) {
+  background: #f4d68a;
+  border-color: #f4d68a;
+}
+
+.uh-btn.navy {
+  background: var(--uh-navy);
+  border-color: var(--uh-navy);
+  color: #fff;
+}
+
+.uh-btn.navy:hover:not(:disabled) {
+  background: #262d4c;
+}
+
+.uh-btn.danger {
+  color: #b93f3a;
+  border-color: #e7c3c1;
+}
+
+.uh-btn.danger:hover:not(:disabled) {
+  background: #fdf3f2;
+  border-color: #d9908c;
+}
+
+.uh-btn.sm {
+  padding: 6px 11px;
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- cards & lists */
+
+.uh-card {
+  background: #fff;
+  border: 1px solid #e3e6ee;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(25, 30, 50, 0.04);
+}
+
+.uh-card-pad {
+  padding: 20px;
+}
+
+.uh-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.uh-model-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e3e6ee;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.uh-model-card:hover {
+  border-color: #c3cad9;
+  box-shadow: 0 6px 20px rgba(25, 30, 50, 0.08);
+  transform: translateY(-1px);
+}
+
+.uh-model-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: linear-gradient(135deg, #eceef4 0%, #dfe3ed 100%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.uh-model-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.uh-thumb-empty {
+  color: #9aa3b8;
+  font-size: 13px;
+  text-align: center;
+  padding: 12px;
+}
+
+.uh-model-body {
+  padding: 15px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.uh-model-name {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 650;
+  color: #1d2238;
+  word-break: break-word;
+}
+
+.uh-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  color: #6b7590;
+  font-size: 13px;
+}
+
+.uh-card-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  padding-top: 4px;
+  flex-wrap: wrap;
+}
+
+.uh-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef0f6;
+  color: #5b6480;
+  white-space: nowrap;
+}
+
+.uh-badge.ready,
+.uh-badge.published {
+  background: #e4f5eb;
+  color: #2f7f53;
+}
+
+.uh-badge.draft {
+  background: #fdf2dd;
+  color: #8a6a1d;
+}
+
+.uh-badge.warn {
+  background: #fdecea;
+  color: #a5423c;
+}
+
+.uh-badge.info {
+  background: #e8eefc;
+  color: #37528f;
+}
+
+.uh-empty {
+  padding: 56px 24px;
+  text-align: center;
+  color: #6b7590;
+}
+
+.uh-empty h3 {
+  margin: 0 0 8px;
+  color: #2a3048;
+  font-size: 18px;
+}
+
+.uh-empty p {
+  margin: 0 auto 18px;
+  max-width: 460px;
+  line-height: 1.55;
+  font-size: 14.5px;
+}
+
+.uh-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: #6b7590;
+  font-size: 14.5px;
+}
+
+.uh-loading .uh-spinner {
+  border-color: #d7dbe6;
+  border-top-color: var(--uh-gold);
+}
+
+.uh-error-box {
+  padding: 16px 18px;
+  border: 1px solid #edc9c6;
+  background: #fdf4f3;
+  border-radius: 10px;
+  color: #8f3b36;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.uh-error-box code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+/* ---------------------------------------------------------------- capture studio */
+
+.uh-studio {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f7;
+}
+
+.uh-studio-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 11px 20px;
+  background: var(--uh-navy-soft);
+  color: #e7ebf5;
+  border-bottom: 1px solid var(--uh-line);
+}
+
+.uh-studio-title {
+  font-size: 14.5px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uh-studio-step {
+  color: #9aa6c2;
+  font-size: 13px;
+}
+
+.uh-studio-bar .uh-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e7ebf5;
+}
+
+.uh-studio-bar .uh-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.uh-studio-bar .uh-btn.gold {
+  background: var(--uh-gold-strong);
+  border-color: var(--uh-gold-strong);
+  color: #23283f;
+}
+
+.uh-studio-bar .uh-btn.gold:hover:not(:disabled) {
+  background: #f4d68a;
+}
+
+.uh-studio-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The 3D configurator sizes itself to the viewport when it runs standalone. Inside
+   the studio it is one row of a taller page, so it fills the space it is given
+   instead. */
+.uh-studio-body > .app-shell {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.uh-strip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fff;
+  border-top: 1px solid #e3e6ee;
+  overflow-x: auto;
+}
+
+.uh-strip-empty {
+  color: #8a93ab;
+  font-size: 13.5px;
+  padding: 10px 4px;
+}
+
+.uh-shot {
+  flex: none;
+  width: 132px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #eef0f6;
+  cursor: default;
+  position: relative;
+}
+
+.uh-shot img {
+  display: block;
+  width: 100%;
+  height: 78px;
+  object-fit: cover;
+  background: #dfe3ed;
+}
+
+.uh-shot-cap {
+  padding: 5px 7px;
+  font-size: 11.5px;
+  color: #4e5876;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.uh-shot-cap span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uh-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c9a227;
+}
+
+.uh-dot.published {
+  background: #3f9e68;
+}
+
+/* ---------------------------------------------------------------- captures table (/Update) */
+
+.uh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.uh-table th {
+  text-align: left;
+  padding: 11px 14px;
+  background: #f7f8fb;
+  border-bottom: 1px solid #e3e6ee;
+  color: #5b6480;
+  font-weight: 600;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.uh-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid #edeff5;
+  color: #2f364f;
+  vertical-align: middle;
+}
+
+.uh-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.uh-table tr.selected td {
+  background: #fdf8ec;
+}
+
+.uh-table-thumb {
+  width: 92px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #e6e9f1;
+  display: block;
+}
+
+.uh-inline-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 7px 9px;
+  border: 1px solid #d3d8e3;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #2a3048;
+  background: #fff;
+}
+
+.uh-inline-input:focus {
+  outline: none;
+  border-color: var(--uh-gold);
+  box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.18);
+}
+
+.uh-checkbox {
+  width: 17px;
+  height: 17px;
+  accent-color: #c9a227;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- image configurator (module 2) */
+
+.uh-cfg {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  background: #eef0f5;
+}
+
+.uh-cfg-stage {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #e8eaf1;
+}
+
+.uh-stage-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.uh-stage-frame {
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: var(--shot-aspect, 16 / 10);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #dfe2ea;
+  box-shadow: 0 10px 32px rgba(25, 30, 50, 0.14);
+}
+
+/* Base render plus one layer per configured node, stacked in place. Layers are
+   pre-rendered with transparency outside their node, so a plain stack composites
+   correctly — 10 nodes x 5 options is 50 images, not 5^10 combinations. */
+.uh-stage-frame img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.uh-stage-frame img.layer {
+  pointer-events: none;
+}
+
+.uh-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(27, 32, 56, 0.72);
+  color: #fff;
+  cursor: pointer;
+  z-index: 3;
+  backdrop-filter: blur(3px);
+}
+
+.uh-arrow:hover {
+  background: rgba(27, 32, 56, 0.92);
+}
+
+.uh-arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.uh-arrow.prev {
+  left: 18px;
+}
+
+.uh-arrow.next {
+  right: 18px;
+}
+
+.uh-stage-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  background: #fff;
+  border-top: 1px solid #e3e6ee;
+  flex-wrap: wrap;
+}
+
+.uh-angle-dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.uh-angle-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 0;
+  padding: 0;
+  background: #c8cddb;
+  cursor: pointer;
+}
+
+.uh-angle-dot.active {
+  background: var(--uh-gold);
+  transform: scale(1.25);
+}
+
+.uh-angle-label {
+  font-size: 13.5px;
+  color: #5b6480;
+  margin-left: auto;
+}
+
+/* Right-hand panel — nodes present in this image, options underneath. */
+.uh-cfg-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-left: 1px solid #e3e6ee;
+  overflow: hidden;
+}
+
+.uh-panel-head {
+  flex: none;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #edeff5;
+}
+
+.uh-panel-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1d2238;
+}
+
+.uh-panel-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #77819c;
+}
+
+.uh-node-list {
+  flex: none;
+  max-height: 44%;
+  overflow-y: auto;
+  padding: 10px;
+  border-bottom: 1px solid #edeff5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uh-node-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e3e6ee;
+  border-radius: 8px;
+  background: #fff;
+  color: #2f364f;
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.uh-node-btn:hover {
+  border-color: #c3cad9;
+  background: #fafbfd;
+}
+
+.uh-node-btn.active {
+  border-color: var(--uh-gold);
+  background: #fdf8ec;
+  font-weight: 600;
+}
+
+.uh-node-btn .count {
+  margin-left: auto;
+  font-size: 12px;
+  color: #8a93ab;
+  font-weight: 500;
+}
+
+.uh-swatch-dot {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background-size: cover;
+  background-position: center;
+}
+
+.uh-option-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.uh-option-group + .uh-option-group {
+  margin-top: 18px;
+}
+
+.uh-option-group h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d2238;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.uh-option-group .sub {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: #8a93ab;
+}
+
+.uh-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+}
+
+.uh-option {
+  border: 2px solid #e3e6ee;
+  border-radius: 9px;
+  background: #fff;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  font-family: inherit;
+  position: relative;
+}
+
+.uh-option:hover {
+  border-color: #c3cad9;
+}
+
+.uh-option.active {
+  border-color: var(--uh-gold);
+  box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.2);
+}
+
+.uh-option-swatch {
+  display: block;
+  width: 100%;
+  height: 58px;
+  background-size: cover;
+  background-position: center;
+  background-color: #e6e9f1;
+}
+
+.uh-option-name {
+  display: block;
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #2f364f;
+  word-break: break-word;
+}
+
+.uh-option-price {
+  display: block;
+  padding: 0 8px 7px;
+  font-size: 11.5px;
+  color: #7f889f;
+}
+
+.uh-option.unavailable {
+  opacity: 0.55;
+}
+
+.uh-option .flag {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: rgba(27, 32, 56, 0.78);
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+
+.uh-panel-foot {
+  flex: none;
+  padding: 12px 16px;
+  border-top: 1px solid #edeff5;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fafbfd;
+}
+
+.uh-total {
+  margin-right: auto;
+  font-size: 14px;
+  color: #2f364f;
+}
+
+.uh-total strong {
+  font-size: 16px;
+}
+
+/* ---------------------------------------------------------------- toast */
+
+.uh-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 12px 18px;
+  border-radius: 9px;
+  background: var(--uh-navy);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.45;
+  box-shadow: 0 10px 30px rgba(20, 25, 45, 0.3);
+}
+
+.uh-toast.error {
+  background: #8f3b36;
+}
+
+.uh-toast.success {
+  background: #2f6f4c;
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.uh-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(20, 25, 45, 0.5);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.uh-modal {
+  width: 100%;
+  max-width: 460px;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(20, 25, 45, 0.3);
+}
+
+.uh-modal-head {
+  padding: 18px 20px 0;
+}
+
+.uh-modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  color: #1d2238;
+}
+
+.uh-modal-body {
+  padding: 14px 20px 18px;
+  color: #4a5370;
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+
+.uh-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #f7f8fb;
+  border-top: 1px solid #e3e6ee;
+}
+
+.uh-modal .uh-inline-input {
+  margin-top: 10px;
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 1080px) {
+  .uh-cfg {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(260px, 1fr) auto;
+  }
+
+  .uh-cfg-panel {
+    border-left: 0;
+    border-top: 1px solid #e3e6ee;
+    max-height: 52vh;
+  }
+
+  .uh-node-list {
+    max-height: 200px;
+  }
+}
+
+@media (max-width: 720px) {
+  .uh-auth-body {
+    padding: 32px 24px 28px;
+  }
+
+  .uh-auth-title {
+    font-size: 26px;
+  }
+
+  .uh-nav {
+    height: auto;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .uh-page {
+    padding: 18px 14px 40px;
+  }
+}

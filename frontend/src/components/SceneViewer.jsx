@@ -292,7 +292,43 @@ const SceneViewer = forwardRef(function SceneViewer(
       return {
         position: cameraRef.current.position.toArray(),
         target: controlsRef.current.target.toArray(),
+        fov: cameraRef.current.fov,
       };
+    },
+    /** Pixel dimensions of the image captureImage() would return. */
+    getSize() {
+      const canvas = rendererRef.current?.domElement;
+      return canvas ? { width: canvas.width, height: canvas.height } : null;
+    },
+    /**
+     * Which objects this shot actually shows, found by firing a ray through a grid
+     * of screen positions and keeping the nearest hit at each one.
+     *
+     * A capture's node metadata has to describe what is *visible*, not what is in
+     * the file: listing a dishwasher hidden behind an island would put an option in
+     * the configurator that changes nothing the viewer can see. Sampling the depth
+     * this way also naturally handles occlusion, which a frustum test does not.
+     */
+    sampleVisibleObjects(cols = 28, rows = 18) {
+      const camera = cameraRef.current;
+      if (!camera || !modelRoot) return [];
+
+      const raycaster = new THREE.Raycaster();
+      const ndc = new THREE.Vector2();
+      const seen = new Set();
+
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          // Sample cell centres so the grid never lands exactly on the frame edge.
+          ndc.set(((col + 0.5) / cols) * 2 - 1, -(((row + 0.5) / rows) * 2 - 1));
+          raycaster.setFromCamera(ndc, camera);
+          const hit = raycaster
+            .intersectObject(modelRoot, true)
+            .find((i) => i.object?.visible && !i.object.userData?.__configuratorHelper);
+          if (hit) seen.add(hit.object.uuid);
+        }
+      }
+      return [...seen];
     },
   }));
 

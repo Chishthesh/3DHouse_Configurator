@@ -1,0 +1,180 @@
+// Thin transport layer over the Configurator API.
+//
+// Two things here are deliberate:
+//   * Large binaries never travel through the API. Endpoints hand back a SAS URL
+//     and the browser PUTs straight to Blob Storage, so a 6 MB .glb or a 2,000-image
+//     layer set doesn't occupy an API connection.
+//   * Errors are normalised into one ApiError shape. The API returns ProblemDetails
+//     in some places and { message } in others; the UI should not have to care.
+
+const TOKEN_KEY = 'uh.auth.token';
+const USER_KEY = 'uh.auth.user';
+
+// Defaults to the API's plain-HTTP dev port. The HTTPS port (7280) uses a
+// self-signed certificate that fetch() refuses until it has been trusted, which
+// is a confusing first-run failure. Override with VITE_API_BASE when deploying.
+export const API_BASE = (import.meta.env?.VITE_API_BASE ?? 'http://localhost:5280').replace(/\/$/, '');
+
+export class ApiError extends Error {
+  constructor(message, status, details) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.details = details;
+  }
+
+  /** True when the API is reachable but Azure Blob Storage has not been configured. */
+  get isStorageUnconfigured() {
+    return /blob storage is not configured/i.test(this.message);
+  }
+}
+
+export function getToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setSession(token, user) {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    /* private mode — the session simply won't survive a reload */
+  }
+}
+
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSession() {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}
+
+// Set by AuthContext so a 401 anywhere drops the session instead of leaving the
+// user staring at a page that silently fails to load.
+let onUnauthorized = null;
+export function setUnauthorizedHandler(fn) {
+  onUnauthorized = fn;
+}
+
+async function readError(response) {
+  const text = await response.text().catch(() => '');
+  if (!text) return new ApiError(`${response.status} ${response.statusText}`, response.status);
+
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return new ApiError(text.slice(0, 400), response.status);
+  }
+
+  // ASP.NET validation problems arrive as { errors: { Field: ["msg"] } }.
+  if (body?.errors && typeof body.errors === 'object') {
+    const flat = Object.entries(body.errors)
+      .map(([field, msgs]) => `${field}: ${[].concat(msgs).join(', ')}`)
+      .join(' · ');
+    return new ApiError(flat || body.title || 'Validation failed', response.status, body);
+  }
+
+  const message = body?.message ?? body?.detail ?? body?.title ?? `${response.status} ${response.statusText}`;
+  return new ApiError(message, response.status, body);
+}
+
+export async function request(path, { method = 'GET', body, auth = true, raw = false, signal } = {}) {
+  const headers = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  if (auth) {
+    const token = getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+  } catch (err) {
+    if (err?.name === 'AbortError') throw err;
+    // fetch() rejects with a bare "Failed to fetch" for a dead server, a CORS
+    // rejection and an untrusted certificate alike — none of which tells the
+    // user what to do next.
+    throw new ApiError(
+      `Cannot reach the API at ${API_BASE}. Start the backend (dotnet run --project backend/src/Configurator.Api) and check that this origin is allowed by CORS.`,
+      0
+    );
+  }
+
+  if (response.status === 401 && auth) {
+    onUnauthorized?.();
+    throw new ApiError('Your session has expired. Please sign in again.', 401);
+  }
+
+  if (!response.ok) throw await readError(response);
+
+  if (response.status === 204) return null;
+  if (raw) return response;
+
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+/**
+ * Uploads bytes to a SAS URL handed out by the API.
+ *
+ * x-ms-blob-type is not optional: Azure rejects a PUT to a block blob without it,
+ * and the resulting 400 mentions only "one of the request inputs is out of range",
+ * which is a miserable thing to debug.
+ */
+export async function putToBlob(sasUrl, blob, contentType) {
+  let response;
+  try {
+    response = await fetch(sasUrl, {
+      method: 'PUT',
+      headers: {
+        'x-ms-blob-type': 'BlockBlob',
+        'Content-Type': contentType || blob.type || 'application/octet-stream',
+      },
+      body: blob,
+    });
+  } catch {
+    throw new ApiError(
+      'The browser could not reach Blob Storage. If you are running Azurite, confirm it is listening on 127.0.0.1:10000; if you are on real Azure, add this origin to the storage account CORS rules.',
+      0
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    const hint = response.status === 403 ? ' The upload URL may have expired — try again.' : '';
+    throw new ApiError(`Upload failed (${response.status}).${hint} ${detail.slice(0, 300)}`.trim(), response.status);
+  }
+  return true;
+}
+
+/** Turns a data: URL from the WebGL canvas into a Blob without a round trip. */
+export function dataUrlToBlob(dataUrl) {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = /:(.*?);/.exec(meta)?.[1] ?? 'image/png';
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}

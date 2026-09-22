@@ -12,7 +12,16 @@ import { extractGlbTextures } from './utils/extractGlbTextures.js';
 import { frameForBox, frameOpeningShot } from './utils/cameraFraming.js';
 import { addCapture, makeThumbnail, slugify } from './utils/captureStore.js';
 
-export default function App() {
+/**
+ * The 3D configurator.
+ *
+ * It runs in two modes. On its own it is the standalone tool it has always been,
+ * saving captures to the browser's local store. Given a `studio` prop it becomes
+ * the capture stage of module 1: the model is handed to it, captures go to the API
+ * with their camera pose and node metadata, and the chrome around it belongs to
+ * the surrounding page.
+ */
+export default function App({ studio = null }) {
   const [activeTab, setActiveTab] = useState('configurator');
 
   const [model, setModel] = useState(null); // { url, name, key, isBlob }
@@ -72,6 +81,25 @@ export default function App() {
     modelRef.current = next;
     setModel(next);
   }, []);
+
+  // In studio mode the .glb was chosen (or fetched from the API) on the way in, so
+  // it arrives ready to load instead of being picked here. Keyed on the URL so a
+  // re-render doesn't reload the scene and throw away the user's edits.
+  const studioModelUrl = studio?.initialModel?.url ?? null;
+  useEffect(() => {
+    if (!studioModelUrl) return;
+    resetForNewModel(studio.initialModel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studioModelUrl]);
+
+  // Reports what the browser parsed out of the .glb back to the page, which is how
+  // module 1 fills in node/mesh/material/texture counts after the upload completes.
+  // Held in a ref so a caller passing an inline callback cannot cause a render loop.
+  const onGraphReadyRef = useRef(null);
+  onGraphReadyRef.current = studio?.onGraphReady ?? null;
+  useEffect(() => {
+    if (graph) onGraphReadyRef.current?.(graph.stats);
+  }, [graph]);
 
   const handleFileChosen = useCallback(
     (file) => {
@@ -249,6 +277,18 @@ export default function App() {
     setWorkbook(null);
     workbookFileRef.current = null;
   }, []);
+
+  // A schedule already attached to this model on the server is loaded without being
+  // re-picked. The studio needs it: which visible parts are *configurable* can only
+  // be worked out against a schedule, and that list is stored with every capture.
+  const studioSchedule = studio?.scheduleShape ?? null;
+  useEffect(() => {
+    if (!studioSchedule) return;
+    applyParsedLibrary(
+      parseMaterialLibrary(JSON.stringify(studioSchedule), studioSchedule.name ?? 'attached schedule'),
+      'the schedule attached to this model'
+    );
+  }, [studioSchedule, applyParsedLibrary]);
 
   // A model exported to the older {category}_{zone} convention gets its built-in
   // catalogue automatically, so that workflow keeps working with nothing to upload.
@@ -496,6 +536,54 @@ export default function App() {
         if (!dataUrl || dataUrl.length < 512) throw new Error('the renderer returned an empty image');
         const pose = sceneViewerRef.current.getCameraPose();
         const thumbUrl = await makeThumbnail(dataUrl);
+
+        // Studio mode sends the angle to the API rather than the browser's local
+        // store, and records which nodes the shot actually shows.
+        //
+        // That metadata is the whole basis of module 2: the right-hand panel lists
+        // the parts present in the image being viewed, so a node hidden behind the
+        // island must not appear there offering changes nobody can see.
+        if (studio?.onSaveCapture) {
+          const size = sceneViewerRef.current.getSize?.() ?? { width: 1600, height: 1000 };
+          const uuids = sceneViewerRef.current.sampleVisibleObjects?.() ?? [];
+
+          // A hit lands on a mesh, but the schedule targets parts higher up
+          // ("Refrigerator", not "Cube003_2"), so every ancestor of a visible mesh
+          // counts as visible too.
+          const visibleIds = new Set();
+          for (const uuid of uuids) {
+            let cur = graph?.byId.get(uuid);
+            while (cur) {
+              visibleIds.add(cur.id);
+              cur = cur.parentId ? graph.byId.get(cur.parentId) : null;
+            }
+          }
+
+          const nameOf = (id) => graph?.byId.get(id)?.name;
+          const visibleNodes = [...new Set([...visibleIds].map(nameOf).filter(Boolean))];
+          const configurableNodes = [
+            ...new Set(
+              [...visibleIds]
+                .filter((id) => (nodeMatches.get(id) ?? []).length > 0)
+                .map(nameOf)
+                .filter(Boolean)
+            ),
+          ];
+
+          await studio.onSaveCapture({
+            title,
+            dataUrl,
+            thumbUrl,
+            pose,
+            width: size.width,
+            height: size.height,
+            visibleNodes,
+            configurableNodes,
+            focusNodeName: selectedNode?.name ?? null,
+          });
+          return;
+        }
+
         const config = Object.values(edits).map((e) => ({
           nodeName: e.nodeName,
           nodePath: e.nodePath,
@@ -537,7 +625,7 @@ export default function App() {
         setBusy(false);
       }
     },
-    [model, edits, totalPrice, library, selectedNode, labelFor, showToast]
+    [model, edits, totalPrice, library, selectedNode, labelFor, showToast, studio, graph, nodeMatches]
   );
 
   const handleRestoreCapture = useCallback(
@@ -621,11 +709,13 @@ export default function App() {
 
   const selectionBox = selectedNode?.box ?? null;
 
+  const inStudio = !!studio;
+
   return (
     <div className="app-shell">
       <div className="topbar">
         <div className="topbar-title">
-          <strong>3D Configurator</strong>
+          <strong>{inStudio ? 'Capture studio' : '3D Configurator'}</strong>
           <span>{model ? model.name : 'Upload a .glb to begin'}</span>
         </div>
 
@@ -637,9 +727,13 @@ export default function App() {
             Materials &amp; Textures
             {graph && <em>{graph.stats.materialCount}</em>}
           </button>
-          <button className={`tab-btn ${activeTab === 'captures' ? 'active' : ''}`} onClick={() => setActiveTab('captures')}>
-            Saved Captures
-          </button>
+          {/* In studio mode the saved angles live in the strip below the viewport,
+              where they can be reviewed against the shot being lined up. */}
+          {!inStudio && (
+            <button className={`tab-btn ${activeTab === 'captures' ? 'active' : ''}`} onClick={() => setActiveTab('captures')}>
+              Saved Captures
+            </button>
+          )}
         </div>
 
         <div className="topbar-right">
@@ -667,7 +761,7 @@ export default function App() {
               </button>
             </>
           )}
-          {model && (
+          {model && !inStudio && (
             <button className="btn btn-sm" onClick={() => resetForNewModel(null)}>
               Load another model
             </button>

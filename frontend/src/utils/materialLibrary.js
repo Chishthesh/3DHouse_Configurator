@@ -593,6 +593,13 @@ function finalizeShape(shape, filename, errors, warnings) {
   }
 
   return {
+    // The raw document, handed back untouched.
+    //
+    // A finalized group holds compiled RegExps, and JSON.stringify turns a RegExp
+    // into {} — so storing the *library* server-side would silently lose every node
+    // pattern. The raw shape is plain data and re-parses to an identical library,
+    // which is what the API stores and the render worker reads.
+    shape,
     library: {
       name: String(shape.name ?? filename ?? 'Material schedule'),
       version: shape.version ? String(shape.version) : null,
