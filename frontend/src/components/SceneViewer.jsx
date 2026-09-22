@@ -301,6 +301,39 @@ const SceneViewer = forwardRef(function SceneViewer(
       return canvas ? { width: canvas.width, height: canvas.height } : null;
     },
     /**
+     * The underlying three.js objects.
+     *
+     * Layer generation needs to drive the renderer directly — move the camera to a
+     * stored pose, swap materials for a mask pass, render off the normal loop — and
+     * doing that through a dozen bespoke methods would be worse than handing over
+     * the objects. Callers must restore whatever they change.
+     */
+    getThree() {
+      if (!rendererRef.current || !sceneRefLocal.current || !cameraRef.current) return null;
+      return {
+        gl: rendererRef.current,
+        scene: sceneRefLocal.current,
+        camera: cameraRef.current,
+        controls: controlsRef.current,
+        modelRoot,
+      };
+    },
+    /** Puts the camera exactly on a stored pose, with no tween. */
+    applyPose(pose) {
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+      if (!camera || !pose) return false;
+      camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
+      if (typeof pose.fov === 'number' && pose.fov > 0) camera.fov = pose.fov;
+      if (controls) {
+        controls.target.set(pose.target[0], pose.target[1], pose.target[2]);
+        controls.update();
+      }
+      camera.lookAt(pose.target[0], pose.target[1], pose.target[2]);
+      camera.updateProjectionMatrix();
+      return true;
+    },
+    /**
      * Which objects this shot actually shows, found by firing a ray through a grid
      * of screen positions and keeping the nearest hit at each one.
      *

@@ -150,6 +150,24 @@ export async function saveCapture({ modelId, name, sortOrder, tier, dataUrl, thu
   return res.captureId;
 }
 
+// --- Layers -----------------------------------------------------------------------
+
+export const layers = {
+  /** Everything needed to render one capture's layers: pose, nodes and the schedule. */
+  spec: (captureId) => request(`/api/captures/${captureId}/render-spec`),
+  register: (captureId, nodeName, optionKey, sizeBytes) =>
+    request(`/api/captures/${captureId}/layers`, { method: 'POST', body: { nodeName, optionKey, sizeBytes } }),
+  reportStatus: (captureId, status, error = null) =>
+    request(`/api/captures/${captureId}/layer-status`, { method: 'POST', body: { status, error } }),
+};
+
+/** Registers one rendered layer and PUTs its image to the returned SAS URL. */
+export async function uploadLayer({ captureId, nodeName, optionKey, blob }) {
+  const res = await layers.register(captureId, nodeName, optionKey, blob.size);
+  await putToBlob(res.uploadUrl, blob, blob.type || 'image/webp');
+  return res.layerId;
+}
+
 // --- Saved configurations -----------------------------------------------------------
 
 export const configurations = {

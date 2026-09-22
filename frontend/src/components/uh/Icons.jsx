@@ -159,3 +159,11 @@ export const AlertIcon = (p) => (
     <path d="M12 8v5M12 16h.01" />
   </Icon>
 );
+
+export const LayersIcon = (p) => (
+  <Icon {...p}>
+    <path d="m12 2 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 12 9 5 9-5" />
+    <path d="m3 17 9 5 9-5" />
+  </Icon>
+);

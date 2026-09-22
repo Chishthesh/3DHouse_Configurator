@@ -11,6 +11,7 @@ import { buildInHouseScheduleShape } from './data/builtinLibrary.js';
 import { extractGlbTextures } from './utils/extractGlbTextures.js';
 import { frameForBox, frameOpeningShot } from './utils/cameraFraming.js';
 import { addCapture, makeThumbnail, slugify } from './utils/captureStore.js';
+import { renderCaptureLayers } from './utils/layerRenderer.js';
 
 /**
  * The 3D configurator.
@@ -638,6 +639,31 @@ export default function App({ studio = null }) {
     },
     [model, edits, totalPrice, library, selectedNode, labelFor, showToast, studio, graph, nodeMatches]
   );
+
+  // --- Layer generation ------------------------------------------------------------
+
+  // Renders one capture's layers from the scene already loaded here. The page owns
+  // the API calls and the progress UI; this owns the pixels.
+  const runLayersForCapture = useCallback(
+    (job) =>
+      renderCaptureLayers({
+        viewer: sceneViewerRef.current,
+        graph,
+        editor: editorRef.current,
+        library,
+        hasOwnFinishes,
+        ...job,
+      }),
+    [graph, library, hasOwnFinishes]
+  );
+
+  // Handed to the page whenever it becomes usable, and withdrawn when it is not —
+  // so a "Generate layers" button cannot be pressed before the model and its
+  // schedule are both in memory. registerLayerRunner only assigns a ref, so this
+  // effect cannot loop.
+  useEffect(() => {
+    studio?.registerLayerRunner?.(graph && library ? runLayersForCapture : null);
+  }, [studio, graph, library, runLayersForCapture]);
 
   const handleRestoreCapture = useCallback(
     async (capture) => {

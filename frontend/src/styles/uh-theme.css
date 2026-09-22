@@ -1380,3 +1380,44 @@
     padding: 18px 14px 40px;
   }
 }
+
+/* ---------------------------------------------------------------- layer generation */
+
+.uh-layer-progress {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  background: var(--uh-navy);
+  color: #e7ebf5;
+  border-bottom: 1px solid var(--uh-line);
+}
+
+.uh-layer-line {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.uh-layer-bar {
+  margin-top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.uh-layer-bar i {
+  display: block;
+  height: 100%;
+  background: var(--uh-gold);
+  transition: width 0.2s ease;
+}
+
+.uh-layer-progress .uh-btn {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e7ebf5;
+}

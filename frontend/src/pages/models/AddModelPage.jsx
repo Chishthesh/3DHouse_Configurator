@@ -2,16 +2,19 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import App from '../../App.jsx';
 import {
   captures as capturesApi,
+  layers as layersApi,
   models as modelsApi,
   projects as projectsApi,
   schedules as schedulesApi,
   saveCapture,
+  uploadLayer,
   uploadModel,
   CaptureStatus,
   CaptureTier,
+  LayerStatus,
 } from '../../api/endpoints.js';
 import { ErrorBox, Loading, Modal, useToast } from '../../components/uh/Ui.jsx';
-import { ArrowLeftIcon, CheckIcon, UploadIcon } from '../../components/uh/Icons.jsx';
+import { ArrowLeftIcon, CheckIcon, LayersIcon, UploadIcon } from '../../components/uh/Icons.jsx';
 import { navigate } from '../../router/Router.jsx';
 
 const MIN_ANGLES = 30; // agreed target coverage per model
@@ -44,6 +47,17 @@ export default function AddModelPage({ modelId: existingId }) {
 
   const completedRef = useRef(false);
   const objectUrlRef = useRef(null);
+
+  // Set by the studio once the model and schedule are both loaded; null until then.
+  const layerRunnerRef = useRef(null);
+  const [layerReady, setLayerReady] = useState(false);
+  const [layerRun, setLayerRun] = useState(null); // { capture, index, total, label }
+  const cancelLayersRef = useRef(false);
+
+  const registerLayerRunner = useCallback((fn) => {
+    layerRunnerRef.current = fn;
+    setLayerReady(!!fn);
+  }, []);
 
   useEffect(
     () => () => {
@@ -228,9 +242,88 @@ export default function AddModelPage({ modelId: existingId }) {
       scheduleShape,
       onGraphReady: handleGraphReady,
       onSaveCapture: handleSaveCapture,
+      registerLayerRunner,
     }),
-    [localModel, scheduleShape, handleGraphReady, handleSaveCapture]
+    [localModel, scheduleShape, handleGraphReady, handleSaveCapture, registerLayerRunner]
   );
+
+  // --- Layer generation ---------------------------------------------------------------
+
+  /**
+   * Renders every option image for the published captures of this model.
+   *
+   * This is the step that makes the configurator's images actually change. Each
+   * layer is one part wearing one option, cut to that part's silhouette, so the
+   * configurator stacks them over the base image instead of re-rendering.
+   */
+  async function handleGenerateLayers() {
+    const runner = layerRunnerRef.current;
+    if (!runner) return;
+
+    const targets = shots.filter((s) => s.status === CaptureStatus.Published);
+    if (targets.length === 0) {
+      toast.show('Publish some angles first — layers are rendered for published captures.', 'error');
+      return;
+    }
+
+    cancelLayersRef.current = false;
+    let totalRendered = 0;
+    const problems = [];
+
+    try {
+      for (const shot of targets) {
+        if (cancelLayersRef.current) break;
+
+        // The spec carries the exact pose the angle was shot from, so the layers
+        // line up with the base image pixel for pixel.
+        const spec = await layersApi.spec(shot.id);
+        const configurable = JSON.parse(spec.configurableNodesJson || '[]');
+        const visible = JSON.parse(spec.visibleNodesJson || '[]');
+        // Captures taken before the workbook arrived have no configurable list;
+        // fall back to everything visible and let the schedule decide.
+        const nodeNames = configurable.length > 0 ? configurable : visible;
+
+        setLayerRun({ capture: shot.name, index: 0, total: 0, label: 'working out what to render…' });
+
+        const result = await runner({
+          pose: {
+            position: spec.pose.camera,
+            target: spec.pose.target,
+            fov: spec.pose.fov,
+          },
+          width: spec.width,
+          height: spec.height,
+          nodeNames,
+          shouldStop: () => cancelLayersRef.current,
+          onProgress: ({ index, total, nodeName, optionName }) =>
+            setLayerRun({ capture: shot.name, index, total, label: nodeName ? `${nodeName} · ${optionName}` : optionName }),
+          upload: ({ nodeName, optionKey, blob }) => uploadLayer({ captureId: shot.id, nodeName, optionKey, blob }),
+        });
+
+        totalRendered += result.rendered;
+        problems.push(...result.failures);
+
+        await layersApi.reportStatus(
+          shot.id,
+          result.failures.length > 0 && result.rendered === 0 ? LayerStatus.Failed : LayerStatus.Complete,
+          result.failures[0] ?? null
+        );
+      }
+
+      await refreshShots(modelId);
+      toast.show(
+        cancelLayersRef.current
+          ? `Stopped after ${totalRendered} layers.`
+          : `${totalRendered} layer${totalRendered === 1 ? '' : 's'} rendered.` +
+              (problems.length > 0 ? ` ${problems.length} failed.` : ''),
+        problems.length > 0 && totalRendered === 0 ? 'error' : 'success'
+      );
+    } catch (err) {
+      toast.show(`Layer generation stopped: ${err.message}`, 'error');
+    } finally {
+      setLayerRun(null);
+    }
+  }
 
   // --- Publishing -------------------------------------------------------------------
 
@@ -382,12 +475,45 @@ export default function AddModelPage({ modelId: existingId }) {
           <button className="uh-btn sm" onClick={() => navigate(`/models/${modelId}/update`)}>
             Manage captures
           </button>
+          <button
+            className="uh-btn sm"
+            disabled={!layerReady || !!layerRun || published === 0}
+            onClick={handleGenerateLayers}
+            title={
+              !layerReady
+                ? 'Needs the model and its schedule loaded'
+                : published === 0
+                ? 'Publish an angle first'
+                : 'Render one image per option so the configurator can change the picture'
+            }
+          >
+            <LayersIcon size={15} />
+            Generate layers
+          </button>
           <button className="uh-btn sm gold" disabled={draftIds.length === 0} onClick={() => setConfirmPublish(true)}>
             <CheckIcon size={15} />
             Save All ({draftIds.length})
           </button>
         </div>
       </div>
+
+      {layerRun && (
+        <div className="uh-layer-progress">
+          <span className="uh-spinner light" />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="uh-layer-line">
+              Rendering layers for <strong>{layerRun.capture}</strong> — {layerRun.index}
+              {layerRun.total ? ` of ~${layerRun.total}` : ''} · {layerRun.label}
+            </div>
+            <div className="uh-layer-bar">
+              <i style={{ width: `${layerRun.total ? Math.min(100, (layerRun.index / layerRun.total) * 100) : 5}%` }} />
+            </div>
+          </div>
+          <button className="uh-btn sm" onClick={() => { cancelLayersRef.current = true; }}>
+            Stop
+          </button>
+        </div>
+      )}
 
       <div className="uh-studio-body">
         <App studio={studio} />
