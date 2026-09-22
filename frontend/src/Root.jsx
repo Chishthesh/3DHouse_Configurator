@@ -63,7 +63,15 @@ function Shell() {
     () => [
       { path: '/models', render: () => (can.manageModels ? <ModelsPage /> : <NoAccess>Models and captures are managed by the Artist and Admin roles.</NoAccess>) },
       { path: '/models/add', render: () => (can.manageModels ? <AddModelPage /> : <NoAccess>Uploading models requires the Artist or Admin role.</NoAccess>) },
-      { path: '/models/:id/add', render: ({ params }) => (can.manageModels ? <AddModelPage modelId={params.id} /> : <NoAccess>Capturing angles requires the Artist or Admin role.</NoAccess>) },
+      {
+        path: '/models/:id/add',
+        render: ({ params, query }) =>
+          can.manageModels ? (
+            <AddModelPage modelId={params.id} autoGenerate={query.generate === '1'} />
+          ) : (
+            <NoAccess>Capturing angles requires the Artist or Admin role.</NoAccess>
+          ),
+      },
       { path: '/models/:id/update', render: ({ params }) => <ModelCapturesPage modelId={params.id} /> },
       { path: '/configurator', render: () => (can.configure ? <ConfigureListPage /> : <NoAccess>The configurator is open to the Admin, Analyst and Customer roles.</NoAccess>) },
       { path: '/configurator/:id', render: ({ params }) => (can.configure ? <ImageConfiguratorPage modelId={params.id} /> : <NoAccess>The configurator is open to the Admin, Analyst and Customer roles.</NoAccess>) },

@@ -25,7 +25,7 @@ const MIN_ANGLES = 30; // agreed target coverage per model
  * Reached two ways — with no id to upload a new model, or with one to add more
  * angles to a model that already exists. Both paths converge on the same studio.
  */
-export default function AddModelPage({ modelId: existingId }) {
+export default function AddModelPage({ modelId: existingId, autoGenerate = false }) {
   const toast = useToast();
 
   const [phase, setPhase] = useState(existingId ? 'fetching' : 'choose');
@@ -78,17 +78,6 @@ export default function AddModelPage({ modelId: existingId }) {
         const detail = await modelsApi.get(existingId);
         if (cancelled) return;
         setModelName(detail.name);
-
-        // Its schedule, if one is attached, so the studio knows which visible parts
-        // are configurable while angles are being lined up.
-        if (detail.schedule) {
-          try {
-            const parsed = await schedulesApi.getParsed(existingId);
-            if (!cancelled) setScheduleShape(parsed);
-          } catch {
-            /* the angles can still be captured without it */
-          }
-        }
 
         setProgress('Downloading the .glb…');
         const res = await fetch(detail.downloadUrl);
@@ -190,6 +179,38 @@ export default function AddModelPage({ modelId: existingId }) {
   useEffect(() => {
     if (modelId && phase === 'studio') refreshShots(modelId);
   }, [modelId, phase, refreshShots]);
+
+  // The workbook can be attached at any point in a model's life — including long
+  // after it was uploaded and captured — so the studio fetches it whenever it has a
+  // model, not only when reopening an existing one.
+  //
+  // Fetching it only on the reopen path meant a model uploaded, captured and
+  // published in one sitting never had a schedule here. Without one there is nothing
+  // to render options against, so the layer runner was never offered and publishing
+  // could not produce layers. The angle then reached the configurator looking
+  // complete and unable to change its own picture.
+  useEffect(() => {
+    if (!modelId || phase !== 'studio') return undefined;
+    let cancelled = false;
+    schedulesApi
+      .getParsed(modelId)
+      .then((parsed) => {
+        if (!cancelled && parsed) setScheduleShape(parsed);
+      })
+      .catch(() => {
+        /* none attached yet — angles can still be captured */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [modelId, phase]);
+
+  // Published angles whose layers were never rendered. These are the ones that look
+  // finished in the configurator but cannot respond to a choice.
+  const pendingLayers = useMemo(
+    () => shots.filter((s) => s.status === CaptureStatus.Published && s.layerCount === 0),
+    [shots]
+  );
 
   const handleGraphReady = useCallback(
     (stats) => {
@@ -326,6 +347,19 @@ export default function AddModelPage({ modelId: existingId }) {
       setLayerRun(null);
     }
   }
+
+  // Arriving from the configurator with ?generate=1 means someone pressed "render
+  // these layers" over there, where there is no 3D scene to render with. Start as
+  // soon as the model and its schedule are both in memory. The ref keeps it to one
+  // run: the effect re-fires as `shots` changes underneath it.
+  const autoRunRef = useRef(false);
+  useEffect(() => {
+    if (!autoGenerate || autoRunRef.current) return;
+    if (!layerReady || layerRun || pendingLayers.length === 0) return;
+    autoRunRef.current = true;
+    handleGenerateLayers(pendingLayers);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoGenerate, layerReady, layerRun, pendingLayers]);
 
   // --- Publishing -------------------------------------------------------------------
 
@@ -511,6 +545,30 @@ export default function AddModelPage({ modelId: existingId }) {
           </button>
         </div>
       </div>
+
+      {/* Published, but nothing to show for it. Easy to miss otherwise: the strip
+          shows a thumbnail and the configurator lists the parts, so the angle looks
+          done from every side except the one that matters. */}
+      {!layerRun && pendingLayers.length > 0 && (
+        <div className="uh-layer-progress">
+          <LayersIcon size={18} style={{ flex: 'none', color: 'var(--uh-gold)' }} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="uh-layer-line">
+              {pendingLayers.length} published angle{pendingLayers.length === 1 ? ' has' : 's have'} no rendered
+              layers, so options will not change {pendingLayers.length === 1 ? 'its' : 'their'} picture.
+            </div>
+          </div>
+          <button
+            className="uh-btn sm gold"
+            disabled={!layerReady}
+            title={layerReady ? 'Render one image per option' : 'Waiting for the model and its schedule'}
+            onClick={() => handleGenerateLayers(pendingLayers)}
+          >
+            <LayersIcon size={15} />
+            Render {pendingLayers.length} now
+          </button>
+        </div>
+      )}
 
       {layerRun && (
         <div className="uh-layer-progress">

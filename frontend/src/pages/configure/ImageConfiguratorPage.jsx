@@ -309,10 +309,18 @@ export default function ImageConfiguratorPage({ modelId }) {
         {view.layers.length === 0 && nodes.length > 0 && (
           <div className="uh-panel-notice">
             <AlertIcon size={17} style={{ flex: 'none', marginTop: 1 }} />
-            <span>
-              This angle has no rendered layers yet, so choices here will not change the picture. Open it in the
-              capture studio and use <strong>Generate layers</strong>.
-            </span>
+            <div style={{ minWidth: 0 }}>
+              This angle has no rendered layers yet, so choices here will not change the picture.
+              <div style={{ marginTop: 8 }}>
+                <button
+                  className="uh-btn sm gold"
+                  onClick={() => navigate(`/models/${modelId}/add?generate=1`)}
+                  title="Opens the capture studio and starts rendering"
+                >
+                  Render layers now
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
