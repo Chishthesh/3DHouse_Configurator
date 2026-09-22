@@ -72,7 +72,7 @@ function cutout(colour, mask, out) {
   return out.canvas;
 }
 
-function toBlob(canvas, type = 'image/webp', quality = 0.85) {
+function toBlob(canvas, type = 'image/webp', quality = 0.94) {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error('the browser produced no image'))),
@@ -145,7 +145,7 @@ export async function renderCaptureLayers({
   if (!three) throw new Error('the 3D scene is not ready');
   if (!graph || !editor || !library) throw new Error('the model and its schedule must both be loaded');
 
-  const { gl, scene, camera } = three;
+  const { gl, scene, camera, controls } = three;
 
   // Render at the capture's own pixel size. The configurator lays base and layers
   // over one another with object-fit, so a different aspect ratio would misalign
@@ -159,6 +159,29 @@ export async function renderCaptureLayers({
   gl.getSize(previousSize);
   const previousAspect = camera.aspect;
   const previousPixelRatio = gl.getPixelRatio();
+  const previousCamera = {
+    position: camera.position.clone(),
+    quaternion: camera.quaternion.clone(),
+    fov: camera.fov,
+  };
+  const previousControls = controls
+    ? { enabled: controls.enabled, minDistance: controls.minDistance, maxDistance: controls.maxDistance }
+    : null;
+
+  // Take the camera away from OrbitControls for the whole pass.
+  //
+  // The controls run with damping, which means they call update() on every frame
+  // that React Three Fiber draws — including the frames that slip between the
+  // awaits in this loop. update() rebuilds the camera position from the controls'
+  // own spherical state and clamps its distance to minDistance/maxDistance, left
+  // over from the last fly-to. The camera therefore drifted away from the capture
+  // pose while the layers were being rendered, and every layer came out framed
+  // differently from the base image it has to sit on.
+  if (controls) {
+    controls.enabled = false;
+    controls.minDistance = 0;
+    controls.maxDistance = Infinity;
+  }
 
   // Freeze the view on the pose this capture was taken from.
   viewer.applyPose?.(pose);
@@ -223,8 +246,20 @@ export async function renderCaptureLayers({
     editor.resetAll();
     gl.setPixelRatio(previousPixelRatio);
     gl.setSize(previousSize.x, previousSize.y, false);
+
+    // Hand the camera back exactly as it was found, so the artist's view does not
+    // jump to whichever angle happened to be rendered last.
+    camera.position.copy(previousCamera.position);
+    camera.quaternion.copy(previousCamera.quaternion);
+    camera.fov = previousCamera.fov;
     camera.aspect = previousAspect;
     camera.updateProjectionMatrix();
+
+    if (controls && previousControls) {
+      controls.minDistance = previousControls.minDistance;
+      controls.maxDistance = previousControls.maxDistance;
+      controls.enabled = previousControls.enabled;
+    }
   }
 
   return { rendered: done.length, failures };

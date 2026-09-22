@@ -144,8 +144,13 @@ export async function saveCapture({ modelId, name, sortOrder, tier, dataUrl, thu
     configurableNodes,
   });
 
-  await putToBlob(res.baseUploadUrl, dataUrlToBlob(dataUrl), 'image/png');
-  await putToBlob(res.thumbnailUploadUrl, dataUrlToBlob(thumbDataUrl), 'image/png');
+  // The blob already carries the type the canvas encoded, so it is passed through
+  // rather than asserted — labelling a WebP as a PNG would leave the browser to
+  // sniff it.
+  const base = dataUrlToBlob(dataUrl);
+  const thumb = dataUrlToBlob(thumbDataUrl);
+  await putToBlob(res.baseUploadUrl, base, base.type);
+  await putToBlob(res.thumbnailUploadUrl, thumb, thumb.type);
 
   return res.captureId;
 }

@@ -544,7 +544,20 @@ export default function App({ studio = null }) {
       if (!sceneViewerRef.current || !model) return;
       setBusy(true);
       try {
-        const dataUrl = sceneViewerRef.current.captureImage();
+        // A capture is the image customers actually look at, so it is rendered at a
+        // fixed quality rather than at whatever size the artist's window happens to
+        // be. The aspect ratio is kept, so the framing is exactly what was lined up.
+        // 2048 is a deliberate ceiling: every layer is later rendered at this same
+        // size, and doubling it quadruples the work for a job already measured in
+        // hundreds of images.
+        const live = sceneViewerRef.current.getSize?.() ?? { width: 1600, height: 1000 };
+        const scale = Math.min(2, 2048 / Math.max(live.width, live.height));
+        const shot =
+          studio && scale > 1
+            ? { width: Math.round(live.width * scale), height: Math.round(live.height * scale) }
+            : null;
+
+        const dataUrl = sceneViewerRef.current.captureImage(shot ?? undefined);
         if (!dataUrl || dataUrl.length < 512) throw new Error('the renderer returned an empty image');
         const pose = sceneViewerRef.current.getCameraPose();
         const thumbUrl = await makeThumbnail(dataUrl);
@@ -556,7 +569,7 @@ export default function App({ studio = null }) {
         // the parts present in the image being viewed, so a node hidden behind the
         // island must not appear there offering changes nobody can see.
         if (studio?.onSaveCapture) {
-          const size = sceneViewerRef.current.getSize?.() ?? { width: 1600, height: 1000 };
+          const size = shot ?? live;
           const uuids = sceneViewerRef.current.sampleVisibleObjects?.() ?? [];
 
           // A hit lands on a mesh, but the schedule targets parts higher up

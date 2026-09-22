@@ -281,11 +281,42 @@ const SceneViewer = forwardRef(function SceneViewer(
   useImperativeHandle(ref, () => ({
     // preserveDrawingBuffer keeps the framebuffer readable after the frame is
     // presented, which is what makes toDataURL return pixels instead of black.
-    captureImage() {
+    /**
+     * `width`/`height` render the shot at a size of the caller's choosing rather
+     * than the size of the viewport. Captures are the customer-facing image and the
+     * viewport is whatever the artist's window happens to be, so a capture taken at
+     * viewport size arrives soft on any decent display.
+     */
+    captureImage({ width, height, type = 'image/png', quality } = {}) {
       const gl = rendererRef.current;
-      if (!gl) return null;
-      if (sceneRefLocal.current && cameraRef.current) gl.render(sceneRefLocal.current, cameraRef.current);
-      return gl.domElement.toDataURL('image/png');
+      const scene = sceneRefLocal.current;
+      const camera = cameraRef.current;
+      if (!gl || !scene || !camera) return null;
+
+      if (!width || !height) {
+        gl.render(scene, camera);
+        return gl.domElement.toDataURL(type, quality);
+      }
+
+      const previousSize = new THREE.Vector2();
+      gl.getSize(previousSize);
+      const previousRatio = gl.getPixelRatio();
+      const previousAspect = camera.aspect;
+
+      // Rendered at 1:1 so the drawing buffer is exactly the size asked for; the
+      // aspect ratio is unchanged, so the framing the artist lined up is preserved.
+      gl.setPixelRatio(1);
+      gl.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      gl.render(scene, camera);
+      const url = gl.domElement.toDataURL(type, quality);
+
+      gl.setPixelRatio(previousRatio);
+      gl.setSize(previousSize.x, previousSize.y, false);
+      camera.aspect = previousAspect;
+      camera.updateProjectionMatrix();
+      return url;
     },
     getCameraPose() {
       if (!cameraRef.current || !controlsRef.current) return null;
@@ -318,19 +349,26 @@ const SceneViewer = forwardRef(function SceneViewer(
         modelRoot,
       };
     },
-    /** Puts the camera exactly on a stored pose, with no tween. */
+    /**
+     * Puts the camera exactly on a stored pose, with no tween.
+     *
+     * Deliberately does not call controls.update(). OrbitControls re-derives the
+     * camera position from its own spherical state and clamps the radius to
+     * minDistance/maxDistance — values left over from the last fly-to — so updating
+     * here would quietly move the camera somewhere else. The caller disables the
+     * controls for the duration instead.
+     */
     applyPose(pose) {
       const camera = cameraRef.current;
       const controls = controlsRef.current;
       if (!camera || !pose) return false;
+
       camera.position.set(pose.position[0], pose.position[1], pose.position[2]);
       if (typeof pose.fov === 'number' && pose.fov > 0) camera.fov = pose.fov;
-      if (controls) {
-        controls.target.set(pose.target[0], pose.target[1], pose.target[2]);
-        controls.update();
-      }
+      if (controls) controls.target.set(pose.target[0], pose.target[1], pose.target[2]);
       camera.lookAt(pose.target[0], pose.target[1], pose.target[2]);
       camera.updateProjectionMatrix();
+      camera.updateMatrixWorld(true);
       return true;
     },
     /**
