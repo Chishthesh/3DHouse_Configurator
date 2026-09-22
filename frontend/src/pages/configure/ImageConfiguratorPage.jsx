@@ -4,7 +4,7 @@ import { parseMaterialLibrary } from '../../utils/materialLibrary.js';
 import { normalizeKey } from '../../utils/nodeGraph.js';
 import { Empty, ErrorBox, Loading, Modal, useToast } from '../../components/uh/Ui.jsx';
 import ScheduleUpload from '../../components/uh/ScheduleUpload.jsx';
-import { ArrowLeftIcon, ArrowRightIcon, SaveIcon } from '../../components/uh/Icons.jsx';
+import { AlertIcon, ArrowLeftIcon, ArrowRightIcon, SaveIcon } from '../../components/uh/Icons.jsx';
 import { navigate } from '../../router/Router.jsx';
 
 /**
@@ -302,6 +302,19 @@ export default function ImageConfiguratorPage({ modelId }) {
             />
           </div>
         </div>
+
+        {/* A published angle whose layers were never rendered looks fully working —
+            parts listed, options offered — but the picture cannot move. Say so once,
+            plainly, rather than leaving a small chip on each option to explain it. */}
+        {view.layers.length === 0 && nodes.length > 0 && (
+          <div className="uh-panel-notice">
+            <AlertIcon size={17} style={{ flex: 'none', marginTop: 1 }} />
+            <span>
+              This angle has no rendered layers yet, so choices here will not change the picture. Open it in the
+              capture studio and use <strong>Generate layers</strong>.
+            </span>
+          </div>
+        )}
 
         <div className="uh-node-list">
           {nodes.length === 0 && (

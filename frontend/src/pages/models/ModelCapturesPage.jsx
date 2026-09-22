@@ -11,7 +11,7 @@ import {
   LayerStatus,
 } from '../../api/endpoints.js';
 import { Badge, Empty, ErrorBox, Loading, Modal, formatDate, useToast } from '../../components/uh/Ui.jsx';
-import { ArrowLeftIcon, CameraIcon, CheckIcon, SheetIcon, TrashIcon } from '../../components/uh/Icons.jsx';
+import { ArrowLeftIcon, CameraIcon, CheckIcon, LayersIcon, SheetIcon, TrashIcon } from '../../components/uh/Icons.jsx';
 import { useAuth } from '../../auth/AuthContext.jsx';
 import { navigate } from '../../router/Router.jsx';
 
@@ -184,6 +184,29 @@ export default function ModelCapturesPage({ modelId }) {
           </div>
         )}
       </div>
+
+      {/* Publishing from here has no 3D scene to render from, so it cannot produce
+          layers. Without this, an angle sits Published with nothing to show and the
+          configurator looks broken rather than unfinished. */}
+      {rows.some((r) => r.status === CaptureStatus.Published && r.layerCount === 0) && (
+        <div className="uh-card uh-card-pad" style={{ marginBottom: 18, borderColor: '#e8d4a6', background: '#fdf8ec' }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', color: '#7a5f16' }}>
+            <LayersIcon size={18} style={{ flex: 'none', marginTop: 1 }} />
+            <span style={{ fontSize: 14, lineHeight: 1.5 }}>
+              Some published angles have no rendered layers, so options will not change their picture in the
+              configurator. Rendering needs the 3D model loaded —{' '}
+              <button
+                className="uh-link-gold"
+                style={{ color: '#8a6a1d', textDecoration: 'underline' }}
+                onClick={() => navigate(`/models/${modelId}/add`)}
+              >
+                open the capture studio
+              </button>{' '}
+              and use <strong>Generate layers</strong>.
+            </span>
+          </div>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <Empty

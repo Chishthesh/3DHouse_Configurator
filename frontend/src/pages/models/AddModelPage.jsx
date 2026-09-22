@@ -256,13 +256,15 @@ export default function AddModelPage({ modelId: existingId }) {
    * layer is one part wearing one option, cut to that part's silhouette, so the
    * configurator stacks them over the base image instead of re-rendering.
    */
-  async function handleGenerateLayers() {
+  async function handleGenerateLayers(targetsOverride = null) {
     const runner = layerRunnerRef.current;
     if (!runner) return;
 
-    const targets = shots.filter((s) => s.status === CaptureStatus.Published);
+    // Publishing passes the captures it just published, because `shots` will not
+    // have caught up with the state change yet.
+    const targets = targetsOverride ?? shots.filter((s) => s.status === CaptureStatus.Published);
     if (targets.length === 0) {
-      toast.show('Publish some angles first — layers are rendered for published captures.', 'error');
+      if (!targetsOverride) toast.show('Publish some angles first — layers are rendered for published captures.', 'error');
       return;
     }
 
@@ -332,17 +334,30 @@ export default function AddModelPage({ modelId: existingId }) {
   async function handlePublish() {
     setPublishing(true);
     try {
+      const justPublished = new Set(draftIds);
       const res = await capturesApi.publish(modelId, draftIds, true);
-      await refreshShots(modelId);
+
+      const fresh = await capturesApi.list(modelId);
+      setShots(fresh);
       setConfirmPublish(false);
-      toast.show(
-        `${res.publishedCount} capture${res.publishedCount === 1 ? '' : 's'} published` +
-          (res.queuedForLayers > 0 ? `, ${res.queuedForLayers} queued for layer rendering.` : '.'),
-        'success'
-      );
+      setPublishing(false);
+      toast.show(`${res.publishedCount} capture${res.publishedCount === 1 ? '' : 's'} published.`, 'success');
+
+      // Publishing is what makes an angle available to customers, so its layers are
+      // rendered here and now rather than left to a queue. The API marks them Queued
+      // on publish, and nothing consumes that queue yet — leaving it there would
+      // promise work that never happens, which is exactly how a published angle ends
+      // up in the configurator unable to change its own picture.
+      if (layerRunnerRef.current) {
+        await handleGenerateLayers(fresh.filter((s) => justPublished.has(s.id)));
+      } else {
+        toast.show(
+          'Published. Layers still need rendering — attach the schedule, then use Generate layers.',
+          'info'
+        );
+      }
     } catch (err) {
       toast.show(err.message, 'error');
-    } finally {
       setPublishing(false);
     }
   }
@@ -478,7 +493,7 @@ export default function AddModelPage({ modelId: existingId }) {
           <button
             className="uh-btn sm"
             disabled={!layerReady || !!layerRun || published === 0}
-            onClick={handleGenerateLayers}
+            onClick={() => handleGenerateLayers()}
             title={
               !layerReady
                 ? 'Needs the model and its schedule loaded'
