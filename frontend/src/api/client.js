@@ -10,10 +10,22 @@
 const TOKEN_KEY = 'uh.auth.token';
 const USER_KEY = 'uh.auth.user';
 
-// Defaults to the API's plain-HTTP dev port. The HTTPS port (7280) uses a
-// self-signed certificate that fetch() refuses until it has been trusted, which
-// is a confusing first-run failure. Override with VITE_API_BASE when deploying.
-export const API_BASE = (import.meta.env?.VITE_API_BASE ?? 'http://localhost:5280').replace(/\/$/, '');
+// The API's plain-HTTP port, on whatever host the page itself was opened from.
+//
+// Following window.location.hostname matters: 127.0.0.1 and localhost are separate
+// origins to a browser, so opening the app at one and calling the API at the other
+// turns every request into a cross-origin request that CORS then rejects.
+//
+// Port 7280 is deliberately not the default. It is the HTTPS endpoint — reaching it
+// over http:// fails outright, and over https:// it needs the ASP.NET development
+// certificate trusted first (dotnet dev-certs https --trust). Set VITE_API_BASE to
+// https://localhost:7280 once that is done, or to the real host when deploying.
+const devDefault =
+  typeof window !== 'undefined'
+    ? `http://${window.location.hostname || 'localhost'}:5280`
+    : 'http://localhost:5280';
+
+export const API_BASE = (import.meta.env?.VITE_API_BASE ?? devDefault).replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(message, status, details) {
