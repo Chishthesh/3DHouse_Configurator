@@ -53,6 +53,46 @@ that issues a SAS URL will fail — Blob Storage is not optional. With no
 `Queue:ConnectionString`, render jobs are logged and dropped so the rest of the API
 can be exercised before the worker exists.
 
+### Local storage: Azurite
+
+Local development runs against Azurite, the storage emulator, so the code path is
+identical to Azure — the same SAS signing, the same block-blob uploads, the same
+CORS rules. Moving to a real account later is a connection-string change and
+nothing else.
+
+Visual Studio 2022 ships Azurite, so there is nothing to install:
+
+```
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Azure Storage Emulator\azurite.exe" --silent --location backend\.azurite --blobHost 127.0.0.1 --blobPort 10000 --queueHost 127.0.0.1 --queuePort 10001
+```
+
+Then apply the CORS rules **once per Azurite data directory**:
+
+```
+node backend/tools/azurite-setup.mjs
+```
+
+That step is not optional. The browser PUTs .glb files and capture images straight
+to storage using a SAS URL, which makes storage the cross-origin target; without
+CORS rules the preflight is rejected and every upload fails. A real storage account
+needs the same rules set once under Settings → Resource sharing (CORS).
+
+Use the full connection string, not `UseDevelopmentStorage=true`:
+
+```jsonc
+"Storage": {
+  "ConnectionString": "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://127.0.0.1:10000/devstoreaccount1;QueueEndpoint=http://127.0.0.1:10001/devstoreaccount1;",
+  "Container": "configurator"
+}
+```
+
+The shorthand is tempting but breaks silently: `AzureBlobStorage.TryParseSharedKey`
+looks for `AccountName` and `AccountKey` in the string, and finding neither it falls
+back to returning unsigned URLs. Uploads then fail with 403 and nothing explains why.
+
+Those credentials are Azurite's published defaults — a well-known emulator account,
+not a secret.
+
 ---
 
 ## Roles

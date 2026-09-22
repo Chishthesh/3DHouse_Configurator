@@ -85,7 +85,7 @@ export default function AddModelPage({ modelId: existingId }) {
         const url = URL.createObjectURL(blob);
         objectUrlRef.current = url;
         completedRef.current = true; // an existing model already has its counts
-        setLocalModel({ url, name: detail.name, key: `api:${existingId}`, isBlob: true });
+        setLocalModel({ url, name: detail.name, key: `api:${existingId}`, isBlob: true, externalUrl: true });
         setPhase('studio');
       } catch (err) {
         if (!cancelled) {
@@ -152,7 +152,7 @@ export default function AddModelPage({ modelId: existingId }) {
         objectUrlRef.current = url;
         setModelId(id);
         setModelName(file.name);
-        setLocalModel({ url, name: file.name, key: `api:${id}`, isBlob: true });
+        setLocalModel({ url, name: file.name, key: `api:${id}`, isBlob: true, externalUrl: true });
         setPhase('studio');
         toast.show(`"${file.name}" uploaded. Capture the angles you need.`, 'success');
       } catch (err) {

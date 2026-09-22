@@ -66,10 +66,19 @@ export default function App({ studio = null }) {
     editorRef.current?.dispose();
     editorRef.current = null;
     sceneRootRef.current = null;
-    if (objectUrlRef.current) {
+    // Never revoke the URL that is being loaded, and never one this component did
+    // not create.
+    //
+    // Revoking is permanent — re-assigning the same string afterwards does not
+    // bring it back. React 18 re-runs effects in development, so the studio hands
+    // the same object URL in twice; revoking between those two passes left
+    // GLTFLoader fetching a URL the browser had already invalidated, and the whole
+    // scene failed with "Could not load blob:…".
+    if (objectUrlRef.current && objectUrlRef.current !== next?.url) {
       URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
     }
+    objectUrlRef.current = null;
+
     setGraph(null);
     setSceneMeta(null);
     setSelectedNodeId(null);
@@ -77,7 +86,9 @@ export default function App({ studio = null }) {
     setFlyTo(null);
     setHoverName(null);
     setScope('smart');
-    if (next?.isBlob) objectUrlRef.current = next.url;
+    // `externalUrl` marks a model whose URL belongs to the caller — the capture
+    // studio creates and revokes its own, and must not have it freed underneath it.
+    if (next?.isBlob && !next.externalUrl) objectUrlRef.current = next.url;
     modelRef.current = next;
     setModel(next);
   }, []);

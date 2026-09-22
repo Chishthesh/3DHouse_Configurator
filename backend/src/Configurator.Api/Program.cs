@@ -110,7 +110,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
-                  ?? new[] { "http://localhost:5173", "http://localhost:5174" };
+                  ?? new[] { "http://localhost:5173", "http://localhost:5174", "http://127.0.0.1:5173" };
 builder.Services.AddCors(o => o.AddPolicy("web", p => p
     .WithOrigins(corsOrigins)
     .AllowAnyHeader()
