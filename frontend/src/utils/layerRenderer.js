@@ -96,8 +96,17 @@ function optionsForNode(library, nodeName) {
   }
   // A schedule can name the same option code in two groups that both match; the
   // layer is keyed on (node, code), so rendering it twice would just overwrite.
+  //
+  // An option with no key is dropped rather than sent: the key becomes the layer's
+  // file name, and an empty one collapses every option for that part onto a single
+  // image. Parsing guarantees a key, so this only fires for hand-made data.
   const seen = new Set();
-  return out.filter((o) => (seen.has(o.code) ? false : seen.add(o.code)));
+  return out.filter((o) => {
+    if (!o.code) return false;
+    if (seen.has(o.code)) return false;
+    seen.add(o.code);
+    return true;
+  });
 }
 
 /** How many layers a run will produce, so the UI can show real progress. */

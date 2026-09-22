@@ -82,7 +82,16 @@ function normalizeOption(raw, ctx, errors, warnings) {
   }
 
   return {
-    code: raw.code ? String(raw.code).trim() : null,
+    // Every option needs a stable key, because it identifies the option everywhere
+    // outside this file: it names the rendered layer image in Blob Storage, it is
+    // what the 2D configurator looks that layer up by, and it is what a saved
+    // configuration stores.
+    //
+    // A workbook supplies no code column — its rows are a part with a list of
+    // colours and textures — so the key is derived from what the option actually
+    // is. That derivation has to be deterministic, or re-reading the same workbook
+    // would rename every layer and orphan the ones already rendered.
+    code: raw.code ? String(raw.code).trim() : deriveOptionCode({ texture, color, name }),
     name,
     color: color || null,
     roughness: raw.roughness == null ? null : num(raw.roughness, 0.5),
@@ -99,6 +108,34 @@ function normalizeOption(raw, ctx, errors, warnings) {
     notes: raw.notes ? String(raw.notes) : null,
     finish: raw.finish ? String(raw.finish) : null,
   };
+}
+
+/**
+ * A key for an option the document did not name.
+ *
+ * Derived from the thing itself — the texture file, the hex colour, else the name —
+ * so the same row always yields the same key. Kept to characters that survive a blob
+ * path unchanged, since the key ends up in the layer's file name.
+ */
+function deriveOptionCode({ texture, color, name }) {
+  const clean = (value) =>
+    String(value)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  if (texture) {
+    const file = String(texture).split('/').pop().replace(/\.[^.]+$/, '');
+    const slug = clean(file);
+    if (slug) return `tex-${slug}`;
+  }
+  if (color) {
+    const slug = clean(String(color).replace('#', ''));
+    if (slug) return `col-${slug}`;
+  }
+  const slug = clean(name);
+  return slug ? `opt-${slug}` : 'opt';
 }
 
 function normalizeGroup(raw, index, errors, warnings) {
@@ -127,6 +164,19 @@ function normalizeGroup(raw, index, errors, warnings) {
     }
     seenNames.add(key);
     options.push(opt);
+  }
+
+  // Two options sharing a key would share a layer image, so the second would
+  // silently overwrite the first and both would show the same finish. Derived keys
+  // make that unlikely but not impossible — two textures of the same name in
+  // different folders collide — so the key is made unique here rather than trusted.
+  const usedCodes = new Set();
+  for (const opt of options) {
+    let code = opt.code;
+    let n = 2;
+    while (usedCodes.has(code)) code = `${opt.code}-${n++}`;
+    usedCodes.add(code);
+    opt.code = code;
   }
   if (options.length === 0) {
     errors.push(`${ctx}: has no usable options.`);
