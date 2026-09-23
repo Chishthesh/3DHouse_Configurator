@@ -181,6 +181,39 @@ export async function putToBlob(sasUrl, blob, contentType) {
   return true;
 }
 
+/**
+ * Works out why a direct read from Blob Storage failed, and says so.
+ *
+ * fetch() reports a dead server, a DNS failure and a CORS rejection as the same
+ * bare TypeError, so guessing between them sends people to fix the wrong thing —
+ * a stopped Azurite reads exactly like a missing CORS rule.
+ *
+ * A `no-cors` probe separates them: CORS returns an opaque response rather than
+ * throwing, so if the probe succeeds something is listening and the browser
+ * blocked the read; if it throws, nothing is there at all.
+ */
+export async function describeStorageFailure(url) {
+  let origin = null;
+  try {
+    origin = new URL(url).origin;
+  } catch {
+    /* not a URL we can reason about */
+  }
+  if (!origin) return 'The browser could not read the file from Blob Storage.';
+
+  const isLocalEmulator = /^https?:\/\/(127\.0\.0\.1|localhost):100\d\d$/.test(origin);
+
+  try {
+    await fetch(origin, { mode: 'no-cors', cache: 'no-store' });
+  } catch {
+    return isLocalEmulator
+      ? `Nothing is listening at ${origin}, so Azurite is not running. Start it with backend\\tools\\start-azurite.cmd and reload — your uploads are kept in backend\\.azurite and will still be there.`
+      : `Nothing is listening at ${origin}. Check that the storage account is reachable from this machine.`;
+  }
+
+  return `Blob Storage answered at ${origin} but the browser blocked the response, which means CORS. Allow this page's origin (${window.location.origin}) on the storage account with GET and HEAD.`;
+}
+
 /** Turns a data: URL from the WebGL canvas into a Blob without a round trip. */
 export function dataUrlToBlob(dataUrl) {
   const [meta, b64] = dataUrl.split(',');

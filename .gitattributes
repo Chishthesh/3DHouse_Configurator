@@ -1,0 +1,6 @@
+* text=auto
+
+# cmd.exe mis-parses a batch file with Unix line endings — it reports
+# "'M' is not recognized as an internal or external command" on every REM.
+*.cmd text eol=crlf
+*.bat text eol=crlf

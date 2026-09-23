@@ -13,6 +13,7 @@ import {
   CaptureTier,
   LayerStatus,
 } from '../../api/endpoints.js';
+import { describeStorageFailure } from '../../api/client.js';
 import { ErrorBox, Loading, Modal, useToast } from '../../components/uh/Ui.jsx';
 import { ArrowLeftIcon, CheckIcon, LayersIcon, UploadIcon } from '../../components/uh/Icons.jsx';
 import { navigate } from '../../router/Router.jsx';
@@ -72,15 +73,19 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
     if (!existingId) return;
     let cancelled = false;
 
+    // Held outside the try so the failure path can say which host went silent.
+    let downloadUrl = null;
+
     (async () => {
       try {
         setProgress('Reading the model record…');
         const detail = await modelsApi.get(existingId);
         if (cancelled) return;
         setModelName(detail.name);
+        downloadUrl = detail.downloadUrl;
 
         setProgress('Downloading the .glb…');
-        const res = await fetch(detail.downloadUrl);
+        const res = await fetch(downloadUrl);
         if (!res.ok) throw new Error(`Blob Storage returned ${res.status} for the model file.`);
         const blob = await res.blob();
         if (cancelled) return;
@@ -92,11 +97,10 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
         setPhase('studio');
       } catch (err) {
         if (!cancelled) {
+          // A failed fetch says nothing about why. Ask, rather than assume.
           setError(
-            err.name === 'TypeError'
-              ? new Error(
-                  'The browser could not download the .glb from Blob Storage. Add this origin to the storage account CORS rules (allowed methods GET, allowed headers *).'
-                )
+            err.name === 'TypeError' && downloadUrl
+              ? new Error(await describeStorageFailure(downloadUrl))
               : err
           );
           setPhase('error');

@@ -60,7 +60,20 @@ identical to Azure — the same SAS signing, the same block-blob uploads, the sa
 CORS rules. Moving to a real account later is a connection-string change and
 nothing else.
 
-Visual Studio 2022 ships Azurite, so there is nothing to install:
+**Azurite does not survive a reboot.** Start it before the API, every session:
+
+```
+backend\tools\start-azurite.cmd
+```
+
+That finds the emulator, starts it if it is not already listening, and applies the
+CORS rules. Stored data lives in `backend\.azurite` and is kept between runs, so
+uploads, captures and rendered layers all survive a restart — only the process
+needs starting again. When it is not running, every model fails to open, because
+the browser reads the .glb straight from storage.
+
+The pieces it runs, if you would rather do it by hand — Visual Studio 2022 ships
+Azurite, so there is nothing to install:
 
 ```
 "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Azure Storage Emulator\azurite.exe" --silent --location backend\.azurite --blobHost 127.0.0.1 --blobPort 10000 --queueHost 127.0.0.1 --queuePort 10001
