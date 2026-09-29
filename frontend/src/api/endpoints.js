@@ -47,17 +47,28 @@ export async function uploadModel({ projectId, file, stats, onProgress }) {
   onProgress?.('Reserving the model record…');
   const created = await models.create(projectId, file.name, file.size);
 
-  onProgress?.(`Uploading ${(file.size / 1048576).toFixed(1)} MB to Blob Storage…`);
-  await putToBlob(created.uploadUrl, file, 'model/gltf-binary');
+  try {
+    onProgress?.(`Uploading ${(file.size / 1048576).toFixed(1)} MB to Blob Storage…`);
+    await putToBlob(created.uploadUrl, file, 'model/gltf-binary');
 
-  onProgress?.('Recording what the file contains…');
-  await models.complete(created.modelId, {
-    nodeCount: stats.nodeCount,
-    meshCount: stats.meshCount,
-    materialCount: stats.materialCount,
-    textureCount: stats.textureCount,
-    contentHash: null,
-  });
+    onProgress?.('Recording what the file contains…');
+    await models.complete(created.modelId, {
+      nodeCount: stats.nodeCount,
+      meshCount: stats.meshCount,
+      materialCount: stats.materialCount,
+      textureCount: stats.textureCount,
+      contentHash: null,
+    });
+  } catch (err) {
+    // The row is reserved before the bytes are sent, so a failed upload would
+    // otherwise leave a model in the list with no file behind it — indistinguishable
+    // from a good one until someone opens it and gets a 404. Withdraw it, and let
+    // the original failure be the one reported.
+    await models.archive(created.modelId).catch(() => {
+      /* nothing more to do: the upload error is the one worth surfacing */
+    });
+    throw err;
+  }
 
   return created.modelId;
 }

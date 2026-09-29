@@ -35,13 +35,36 @@ if %errorlevel%==0 (
   echo Azurite is already running on 127.0.0.1:10000.
 ) else (
   echo Starting Azurite, data in %DATA%
-  start "" /b "%AZURITE%" --silent --location "%DATA%" --blobHost 127.0.0.1 --blobPort 10000 --queueHost 127.0.0.1 --queuePort 10001
-  timeout /t 5 /nobreak >nul
+  REM Its own window, so this script carries on instead of waiting for Azurite to exit.
+  start "Azurite" /min "%AZURITE%" --silent --location "%DATA%" --blobHost 127.0.0.1 --blobPort 10000 --queueHost 127.0.0.1 --queuePort 10001
+
+  REM Wait for the port, not for a guessed number of seconds. A fixed wait that is
+  REM too short applies the CORS rules before anything is listening: they silently
+  REM fail, Azurite then finishes starting, and every upload is rejected by the
+  REM browser for a reason nothing on screen explains.
+  echo Waiting for the blob service...
+  set "READY="
+  for /l %%i in (1,1,30) do (
+    if not defined READY (
+      netstat -ano | findstr /r /c:"TCP.*127.0.0.1:10000.*LISTENING" >nul
+      if not errorlevel 1 set "READY=1"
+      if not defined READY ping -n 2 127.0.0.1 >nul
+    )
+  )
+  if not defined READY (
+    echo Azurite did not start within 30 seconds. Check the Azurite window for errors.
+    exit /b 1
+  )
 )
 
 REM Safe to repeat: applying the same rules again simply overwrites them.
 echo Applying CORS rules...
 node "%~dp0azurite-setup.mjs"
+if errorlevel 1 (
+  echo.
+  echo CORS rules were NOT applied - uploads from the browser will fail.
+  exit /b 1
+)
 
 echo.
 echo Azurite ready. Start the API next.

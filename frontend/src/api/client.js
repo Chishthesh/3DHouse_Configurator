@@ -167,10 +167,11 @@ export async function putToBlob(sasUrl, blob, contentType) {
       body: blob,
     });
   } catch {
-    throw new ApiError(
-      'The browser could not reach Blob Storage. If you are running Azurite, confirm it is listening on 127.0.0.1:10000; if you are on real Azure, add this origin to the storage account CORS rules.',
-      0
-    );
+    // Same reasoning as the download path: a failed fetch does not say why, so ask
+    // rather than guess. Tagged as a storage fault so the UI does not report this
+    // as the API being down — the API answered perfectly well, it is storage that
+    // did not.
+    throw new ApiError(await describeStorageFailure(sasUrl), 0, { source: 'storage' });
   }
 
   if (!response.ok) {

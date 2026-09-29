@@ -52,7 +52,17 @@ export function ErrorBox({ error, onRetry }) {
   if (!error) return null;
 
   let body;
-  if (error.status === 0) {
+  if (error.details?.source === 'storage') {
+    // Already a specific diagnosis of the storage fault — do not wrap it in a
+    // claim about the API, which in this case answered perfectly well.
+    body = (
+      <>
+        <strong>Blob Storage is not reachable.</strong>
+        <br />
+        {error.message}
+      </>
+    );
+  } else if (error.status === 0) {
     body = (
       <>
         <strong>The API is not reachable.</strong>
