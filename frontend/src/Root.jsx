@@ -8,6 +8,7 @@ import AddModelPage from './pages/models/AddModelPage.jsx';
 import ModelCapturesPage from './pages/models/ModelCapturesPage.jsx';
 import ConfigureListPage from './pages/configure/ConfigureListPage.jsx';
 import ImageConfiguratorPage from './pages/configure/ImageConfiguratorPage.jsx';
+import SavedConfigurationsPage from './pages/configure/SavedConfigurationsPage.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import { RouterProvider, Routes, navigate, useRoute } from './router/Router.jsx';
 import { Brand } from './components/uh/Brand.jsx';
@@ -74,7 +75,16 @@ function Shell() {
       },
       { path: '/models/:id/update', render: ({ params }) => <ModelCapturesPage modelId={params.id} /> },
       { path: '/configurator', render: () => (can.configure ? <ConfigureListPage /> : <NoAccess>The configurator is open to the Admin, Analyst and Customer roles.</NoAccess>) },
-      { path: '/configurator/:id', render: ({ params }) => (can.configure ? <ImageConfiguratorPage modelId={params.id} /> : <NoAccess>The configurator is open to the Admin, Analyst and Customer roles.</NoAccess>) },
+      {
+        path: '/configurator/:id',
+        render: ({ params, query }) =>
+          can.configure ? (
+            <ImageConfiguratorPage modelId={params.id} configurationId={query.configuration ?? null} />
+          ) : (
+            <NoAccess>The configurator is open to the Admin, Analyst and Customer roles.</NoAccess>
+          ),
+      },
+      { path: '/configurations', render: () => (can.configure ? <SavedConfigurationsPage /> : <NoAccess>Saved configurations are available to the Admin, Analyst and Customer roles.</NoAccess>) },
       // The original standalone 3D tool, kept reachable — it needs no backend and is
       // the quickest way to check a .glb before it is uploaded to anything.
       { path: '/studio', render: () => <App /> },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrandMark } from '../components/uh/Brand.jsx';
-import { CubeIcon, SlidersIcon } from '../components/uh/Icons.jsx';
+import { CubeIcon, SaveIcon, SlidersIcon } from '../components/uh/Icons.jsx';
 import { useAuth } from '../auth/AuthContext.jsx';
 import { Link, navigate } from '../router/Router.jsx';
 
@@ -35,6 +35,12 @@ export default function AppShell({ children }) {
             <Link to="/configurator" className="uh-nav-link">
               <SlidersIcon size={17} />
               Image Configurator
+            </Link>
+          )}
+          {can.configure && (
+            <Link to="/configurations" className="uh-nav-link">
+              <SaveIcon size={17} />
+              Saved Configurations
             </Link>
           )}
         </nav>

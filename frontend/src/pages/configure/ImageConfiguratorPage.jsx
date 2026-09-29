@@ -31,7 +31,7 @@ function swatchStyle(option) {
   return {};
 }
 
-export default function ImageConfiguratorPage({ modelId }) {
+export default function ImageConfiguratorPage({ modelId, configurationId = null }) {
   const toast = useToast();
 
   const [model, setModel] = useState(null);
@@ -106,6 +106,67 @@ export default function ImageConfiguratorPage({ modelId }) {
     }
     setActiveNode((prev) => (prev && nodes.some((n) => n.name === prev) ? prev : nodes[0].name));
   }, [nodes]);
+
+  // --- Restoring a saved configuration ---------------------------------------------------
+
+  const [restoredName, setRestoredName] = useState(null);
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    if (!configurationId || !library || restoredRef.current) return undefined;
+
+    let cancelled = false;
+    configApi
+      .get(configurationId)
+      .then((saved) => {
+        // The "only once" guard belongs here, on the apply, not above on the start.
+        //
+        // React runs effects twice in development: the first pass would set the
+        // guard and begin fetching, the cleanup would mark it cancelled, and the
+        // second pass would see the guard and do nothing — so the only pass allowed
+        // to proceed was the one already cancelled, and the configuration silently
+        // never loaded.
+        if (cancelled || restoredRef.current) return;
+        restoredRef.current = true;
+
+        // A saved selection holds the option's key, not the option itself, so each
+        // one is looked up again in the current schedule. Resolving against the
+        // whole library rather than the angle on screen matters: a configuration
+        // covers the whole model, and most of its parts are not in any one view.
+        const restored = {};
+        const missing = [];
+        for (const sel of saved.selections ?? []) {
+          const option = groupsForName(library, sel.nodeName)
+            .flatMap((g) => g.options)
+            .find((o) => o.code === sel.optionKey);
+          if (option) restored[sel.nodeName] = option;
+          else missing.push(sel.optionName || sel.optionKey);
+        }
+
+        setSelections(restored);
+        setRestoredName(saved.name);
+
+        // The workbook can be replaced after a configuration was saved, which can
+        // retire an option. Say so rather than quietly dropping the choice.
+        if (missing.length > 0) {
+          toast.show(
+            `Opened "${saved.name}". ${missing.length} choice${missing.length === 1 ? ' is' : 's are'} no longer in the schedule: ${missing
+              .slice(0, 3)
+              .join(', ')}${missing.length > 3 ? '…' : ''}`,
+            'error'
+          );
+        } else {
+          toast.show(`Opened "${saved.name}" — ${saved.selections.length} choices restored.`, 'success');
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) toast.show(`Could not open that configuration: ${err.message}`, 'error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [configurationId, library]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Layer lookup ---------------------------------------------------------------------
 
@@ -274,6 +335,11 @@ export default function ImageConfiguratorPage({ modelId }) {
       <aside className="uh-cfg-panel">
         <div className="uh-panel-head">
           <h2>{model.name}</h2>
+          {restoredName && (
+            <p style={{ margin: '2px 0 0', fontSize: 13, color: '#8a6a1d' }}>
+              Editing saved configuration: <strong>{restoredName}</strong>
+            </p>
+          )}
           <p>
             {nodes.length === 0
               ? 'Nothing in this view can be changed.'
@@ -403,7 +469,9 @@ export default function ImageConfiguratorPage({ modelId }) {
             className="uh-btn sm gold"
             disabled={Object.keys(selections).length === 0}
             onClick={() => {
-              setSaveName(`${model.name} configuration`);
+              // Re-using the name it was opened under updates that configuration
+              // rather than leaving a near-identical second one behind.
+              setSaveName(restoredName ?? `${model.name} configuration`);
               setSaveOpen(true);
             }}
           >
