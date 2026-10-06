@@ -24,6 +24,9 @@ public interface IBlobStorage
     Task DeletePrefixAsync(string prefix, CancellationToken ct = default);
     Task<Stream> OpenReadAsync(string blobPath, CancellationToken ct = default);
     Task UploadAsync(string blobPath, Stream content, string contentType, CancellationToken ct = default);
+
+    /// <summary>Full blob paths of every blob under a prefix.</summary>
+    Task<IReadOnlyList<string>> ListAsync(string prefix, CancellationToken ct = default);
 }
 
 public class BlobStorageOptions
@@ -123,6 +126,14 @@ public class AzureBlobStorage : IBlobStorage
         }, ct);
     }
 
+    public async Task<IReadOnlyList<string>> ListAsync(string prefix, CancellationToken ct = default)
+    {
+        var names = new List<string>();
+        await foreach (var item in _container.GetBlobsAsync(prefix: prefix, cancellationToken: ct))
+            names.Add(item.Name);
+        return names;
+    }
+
     private static StorageSharedKeyCredential? TryParseSharedKey(string connectionString)
     {
         string? account = null, key = null;
@@ -161,6 +172,7 @@ public class UnconfiguredBlobStorage : IBlobStorage
     public Task<Stream> OpenReadAsync(string blobPath, CancellationToken ct = default) => throw Fail();
     public Task UploadAsync(string blobPath, Stream content, string contentType, CancellationToken ct = default)
         => throw Fail();
+    public Task<IReadOnlyList<string>> ListAsync(string prefix, CancellationToken ct = default) => throw Fail();
 }
 
 /// <summary>Canonical blob paths, kept in one place so the API and the render worker agree.</summary>
@@ -168,6 +180,12 @@ public static class BlobPaths
 {
     public static string Model(Guid modelId, string fileName) => $"models/{modelId}/{Sanitise(fileName)}";
     public static string Schedule(Guid scheduleId, string fileName) => $"schedules/{scheduleId}/{Sanitise(fileName)}";
+    /// <summary>
+    /// Keyed by model, not by schedule: replacing the workbook supersedes the schedule
+    /// row, but the texture files it names should survive that.
+    /// </summary>
+    public static string ScheduleTexture(Guid modelId, string fileName) => $"{ScheduleTexturePrefix(modelId)}{Sanitise(fileName)}";
+    public static string ScheduleTexturePrefix(Guid modelId) => $"schedule-textures/{modelId}/";
     public static string CaptureBase(Guid captureId) => $"captures/{captureId}/base.webp";
     public static string CaptureThumb(Guid captureId) => $"captures/{captureId}/thumb.webp";
     public static string CaptureLayer(Guid captureId, string nodeName, string optionKey)

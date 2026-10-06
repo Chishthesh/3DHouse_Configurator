@@ -384,6 +384,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null,
             <ScheduleUpload
               modelId={modelId}
               current={!!model.schedule}
+              hasAngles={views.length > 0}
               className={`uh-btn sm${model.schedule ? '' : ' gold'}`}
               compact
               onAttached={(res) => {

@@ -2,7 +2,8 @@
 // Keeping the URL strings in a single file means a route change on the backend
 // is a one-line edit here rather than a search through components.
 
-import { request, putToBlob, dataUrlToBlob } from './client.js';
+import { request, putToBlob, dataUrlToBlob, uploadBinary, API_BASE } from './client.js';
+import { absolutizeTextureUrls, safeTextureName, textureApiPath } from '../utils/scheduleTextures.js';
 
 // --- Auth ---------------------------------------------------------------------
 
@@ -77,14 +78,23 @@ export async function uploadModel({ projectId, file, stats, onProgress }) {
 
 export const share = {
   /** Public: one model's angles and schedule, by its stored share token. No sign-in. */
-  get: (token) => request(`/api/share/${encodeURIComponent(token)}`, { auth: false }),
+  get: (token) =>
+    request(`/api/share/${encodeURIComponent(token)}`, { auth: false }).then((s) => ({
+      ...s,
+      schedule: absolutizeTextureUrls(s.schedule),
+    })),
 };
 
 // --- Schedules ------------------------------------------------------------------
 
 export const schedules = {
   /** The normalised option data, as stored when the workbook was attached. */
-  getParsed: (modelId) => request(`/api/models/${modelId}/schedule`),
+  getParsed: (modelId) => request(`/api/models/${modelId}/schedule`).then(absolutizeTextureUrls),
+  /** Texture files already uploaded for the model: [{ fileName }]. */
+  listTextures: (modelId) => request(`/api/models/${modelId}/schedule/textures`),
+  textureUrl: (modelId, name) => `${API_BASE}${textureApiPath(modelId, name)}`,
+  uploadTexture: (modelId, file) =>
+    uploadBinary(`/api/models/${modelId}/schedule/textures/${encodeURIComponent(safeTextureName(file.name))}`, file),
   getMeta: (modelId) => request(`/api/models/${modelId}/schedule/meta`),
   attach: (modelId, payload) => request(`/api/models/${modelId}/schedule`, { method: 'POST', body: payload }),
 };

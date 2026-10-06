@@ -72,6 +72,7 @@ public record ScheduleDto(
 /// then read identical option data without either re-implementing the parser.
 /// </summary>
 public record AttachScheduleRequest(string FileName, string ParsedJson, int GroupCount, int OptionCount);
+public record TextureDto(string FileName);
 public record AttachScheduleResponse(Guid ScheduleId, string UploadUrl, string BlobPath, DateTimeOffset ExpiresAt);
 
 // --- Captures -----------------------------------------------------------------------

@@ -149,6 +149,31 @@ export async function request(path, { method = 'GET', body, auth = true, raw = f
 }
 
 /**
+ * Sends a file to the API itself (not to Blob Storage) as a raw request body.
+ * For small files the API owns the storage path — texture swatches, which the
+ * configurator later reads back through a stable URL rather than a SAS link.
+ */
+export async function uploadBinary(path, blob) {
+  const headers = { 'Content-Type': blob.type || 'application/octet-stream' };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, { method: 'PUT', headers, body: blob });
+  } catch {
+    throw new ApiError(`Cannot reach the API at ${API_BASE}. Is the backend running?`, 0);
+  }
+  if (response.status === 401) {
+    onUnauthorized?.();
+    throw new ApiError('Your session has expired. Please sign in again.', 401);
+  }
+  if (!response.ok) throw await readError(response);
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+
+/**
  * Uploads bytes to a SAS URL handed out by the API.
  *
  * x-ms-blob-type is not optional: Azure rejects a PUT to a block blob without it,

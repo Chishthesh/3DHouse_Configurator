@@ -117,4 +117,72 @@ public class SchedulesController : ControllerBase
         var ticket = _blobs.CreateUploadTicket(schedule.BlobPath);
         return Ok(new AttachScheduleResponse(schedule.Id, ticket.UploadUrl, ticket.BlobPath, ticket.ExpiresAt));
     }
+
+    // --- Textures -----------------------------------------------------------------------
+    //
+    // The workbook only names textures ("mosaico.jpg"); the image files themselves are
+    // uploaded afterwards, one per name, and stored against the model. The configurator
+    // reads them back through the stable GET below, so a URL saved in the schedule never
+    // expires the way a SAS link would.
+
+    private const long MaxTextureBytes = 20 * 1024 * 1024;
+
+    private static readonly Dictionary<string, string> TextureTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".jpg"] = "image/jpeg",
+        [".jpeg"] = "image/jpeg",
+        [".png"] = "image/png",
+        [".webp"] = "image/webp",
+        [".avif"] = "image/avif",
+        [".gif"] = "image/gif",
+    };
+
+    /// <summary>The texture files already uploaded for this model.</summary>
+    [HttpGet("textures")]
+    public async Task<ActionResult<IEnumerable<TextureDto>>> ListTextures(Guid modelId, CancellationToken ct)
+    {
+        var prefix = BlobPaths.ScheduleTexturePrefix(modelId);
+        var paths = await _blobs.ListAsync(prefix, ct);
+        return Ok(paths.Select(p => new TextureDto(p[prefix.Length..])));
+    }
+
+    [HttpPut("textures/{fileName}")]
+    [Authorize(Policy = Roles.CanPublish)]
+    [RequestSizeLimit(MaxTextureBytes)]
+    public async Task<ActionResult<TextureDto>> UploadTexture(Guid modelId, string fileName, CancellationToken ct)
+    {
+        if (!await _db.Models.AnyAsync(m => m.Id == modelId, ct)) return NotFound();
+
+        fileName = Path.GetFileName(fileName);
+        if (!TextureTypes.TryGetValue(Path.GetExtension(fileName), out var contentType))
+            return BadRequest(new { message = $"\"{fileName}\" is not an image type that can be used as a texture (jpg, png, webp, avif or gif)." });
+
+        await using var buffer = new MemoryStream();
+        await Request.Body.CopyToAsync(buffer, ct);
+        if (buffer.Length == 0) return BadRequest(new { message = "The texture file was empty." });
+        buffer.Position = 0;
+
+        var path = BlobPaths.ScheduleTexture(modelId, fileName);
+        await _blobs.UploadAsync(path, buffer, contentType, ct);
+        return Ok(new TextureDto(path[BlobPaths.ScheduleTexturePrefix(modelId).Length..]));
+    }
+
+    /// <summary>
+    /// Anonymous on purpose: the texture is fetched by an &lt;img&gt; or the WebGL loader,
+    /// neither of which can send a bearer token, and the shared configurator link has no
+    /// sign-in at all. A texture is a swatch, not sensitive data.
+    /// </summary>
+    [HttpGet("textures/{fileName}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetTexture(Guid modelId, string fileName, CancellationToken ct)
+    {
+        fileName = Path.GetFileName(fileName);
+        if (!TextureTypes.TryGetValue(Path.GetExtension(fileName), out var contentType)) return NotFound();
+
+        var path = BlobPaths.ScheduleTexture(modelId, fileName);
+        if (!await _blobs.ExistsAsync(path, ct)) return NotFound();
+
+        Response.Headers.CacheControl = "public, max-age=300";
+        return File(await _blobs.OpenReadAsync(path, ct), contentType);
+    }
 }

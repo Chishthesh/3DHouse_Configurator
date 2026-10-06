@@ -92,7 +92,7 @@ function Shell() {
         path: '/models/:id/add',
         render: ({ params, query }) =>
           can.manageModels ? (
-            <AddModelPage modelId={params.id} autoGenerate={query.generate === '1'} />
+            <AddModelPage modelId={params.id} autoGenerate={query.generate === '1'} renderAll={query.all === '1'} />
           ) : (
             <NoAccess>Capturing angles requires the Artist or Admin role.</NoAccess>
           ),

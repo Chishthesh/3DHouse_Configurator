@@ -26,7 +26,7 @@ const MIN_ANGLES = 30; // agreed target coverage per model
  * Reached two ways — with no id to upload a new model, or with one to add more
  * angles to a model that already exists. Both paths converge on the same studio.
  */
-export default function AddModelPage({ modelId: existingId, autoGenerate = false }) {
+export default function AddModelPage({ modelId: existingId, autoGenerate = false, renderAll = false }) {
   const toast = useToast();
 
   const [phase, setPhase] = useState(existingId ? 'fetching' : 'choose');
@@ -54,6 +54,11 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
   const [layerReady, setLayerReady] = useState(false);
   const [layerRun, setLayerRun] = useState(null); // { capture, index, total, label }
   const cancelLayersRef = useRef(false);
+  // Outcome of the last run: { rendered, failed, stopped } or { error }. Drives the popup.
+  const [lastRun, setLastRun] = useState(null);
+  const [popupDismissed, setPopupDismissed] = useState(false);
+  // Where the studio puts its Configurator / Materials & Textures tabs.
+  const [tabsHost, setTabsHost] = useState(null);
 
   const registerLayerRunner = useCallback((fn) => {
     layerRunnerRef.current = fn;
@@ -268,8 +273,9 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
       onGraphReady: handleGraphReady,
       onSaveCapture: handleSaveCapture,
       registerLayerRunner,
+      tabsHost,
     }),
-    [localModel, scheduleShape, handleGraphReady, handleSaveCapture, registerLayerRunner]
+    [localModel, scheduleShape, handleGraphReady, handleSaveCapture, registerLayerRunner, tabsHost]
   );
 
   // --- Layer generation ---------------------------------------------------------------
@@ -338,6 +344,7 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
       }
 
       await refreshShots(modelId);
+      setLastRun({ rendered: totalRendered, failed: problems.length, stopped: cancelLayersRef.current });
       toast.show(
         cancelLayersRef.current
           ? `Stopped after ${totalRendered} layers.`
@@ -346,6 +353,7 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
         problems.length > 0 && totalRendered === 0 ? 'error' : 'success'
       );
     } catch (err) {
+      setLastRun({ error: err.message });
       toast.show(`Layer generation stopped: ${err.message}`, 'error');
     } finally {
       setLayerRun(null);
@@ -359,11 +367,15 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
   const autoRunRef = useRef(false);
   useEffect(() => {
     if (!autoGenerate || autoRunRef.current) return;
-    if (!layerReady || layerRun || pendingLayers.length === 0) return;
+    if (!layerReady || layerRun) return;
+    // After a schedule or texture change every published angle is out of date, not just
+    // the ones with no layers.
+    const targets = renderAll ? shots.filter((s) => s.status === CaptureStatus.Published) : pendingLayers;
+    if (targets.length === 0) return;
     autoRunRef.current = true;
-    handleGenerateLayers(pendingLayers);
+    handleGenerateLayers(targets);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoGenerate, layerReady, layerRun, pendingLayers]);
+  }, [autoGenerate, renderAll, layerReady, layerRun, pendingLayers, shots]);
 
   // --- Publishing -------------------------------------------------------------------
 
@@ -518,13 +530,13 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
           <ArrowLeftIcon size={15} />
           Models
         </button>
-        <div className="uh-studio-title">{modelName}</div>
         <div className="uh-studio-step">
           {shots.length} of {MIN_ANGLES} angles · {published} published
           {!scheduleShape && ' · no schedule attached yet'}
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div ref={setTabsHost} className="uh-studio-tabs" />
           <button className="uh-btn sm" onClick={() => navigate(`/models/${modelId}/update`)}>
             Manage captures
           </button>
@@ -574,7 +586,7 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
         </div>
       )}
 
-      {layerRun && (
+      {layerRun && !autoGenerate && (
         <div className="uh-layer-progress">
           <span className="uh-spinner light" />
           <div style={{ minWidth: 0, flex: 1 }}>
@@ -593,26 +605,102 @@ export default function AddModelPage({ modelId: existingId, autoGenerate = false
       )}
 
       <div className="uh-studio-body">
-        <App studio={studio} />
+        <App
+          studio={studio}
+          capturesPanel={
+            <div className="uh-captures-panel">
+              <h3>
+                Captured angles <span>{shots.length}</span>
+              </h3>
+              {shots.length === 0 ? (
+                <p className="uh-strip-empty">
+                  No angles captured yet. Frame a view, then use <strong>Capture 2D Image</strong> to save it.
+                </p>
+              ) : (
+                <div className="uh-captures-grid">
+                  {shots.map((s) => (
+                    <div key={s.id} className="uh-shot" title={`${s.name} · ${s.visibleNodes.length} parts visible`}>
+                      <img src={s.thumbnailUrl} alt={s.name} loading="lazy" />
+                      <div className="uh-shot-cap">
+                        <span>{s.name}</span>
+                        <i className={`uh-dot ${s.status === CaptureStatus.Published ? 'published' : ''}`} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          }
+        />
       </div>
 
-      <div className="uh-strip">
-        {shots.length === 0 ? (
-          <div className="uh-strip-empty">
-            No angles captured yet. Frame a view, then use <strong>Capture 2D Image</strong> to save it.
-          </div>
-        ) : (
-          shots.map((s) => (
-            <div key={s.id} className="uh-shot" title={`${s.name} · ${s.visibleNodes.length} parts visible`}>
-              <img src={s.thumbnailUrl} alt={s.name} loading="lazy" />
-              <div className="uh-shot-cap">
-                <span>{s.name}</span>
-                <i className={`uh-dot ${s.status === CaptureStatus.Published ? 'published' : ''}`} />
-              </div>
+      {autoGenerate && !popupDismissed && (
+        // Opaque and above the app shell: only the popup is visible. The studio stays mounted
+        // underneath because it is what renders the layers.
+        <div className="uh-modal-backdrop" style={{ background: '#eef0f5', zIndex: 1000 }}>
+          <div className="uh-modal" role="dialog" aria-modal="true" aria-label="Rendering layers">
+            <div className="uh-modal-head">
+              <h2>{lastRun ? (lastRun.error ? 'Layer rendering stopped' : 'Layers are ready') : 'Rendering layers'}</h2>
             </div>
-          ))
-        )}
-      </div>
+            <div className="uh-modal-body">
+              {!lastRun && !layerRun && (
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span className="uh-spinner" />
+                  <span>
+                    Queued — loading the 3D model and the updated schedule. Rendering starts automatically; keep this
+                    page open.
+                  </span>
+                </div>
+              )}
+              {!lastRun && layerRun && (
+                <>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <span className="uh-spinner" />
+                    <span>
+                      Rendering <strong>{layerRun.capture}</strong> — {layerRun.index}
+                      {layerRun.total ? ` of ~${layerRun.total}` : ''}
+                      <br />
+                      <small>{layerRun.label}</small>
+                    </span>
+                  </div>
+                  <div className="uh-layer-bar" style={{ marginTop: 12, background: '#e3e6ee' }}>
+                    <i style={{ width: `${layerRun.total ? Math.min(100, (layerRun.index / layerRun.total) * 100) : 5}%` }} />
+                  </div>
+                  <p style={{ margin: '10px 0 0', fontSize: 13 }}>
+                    The new schedule and textures are being applied to every published angle. You can use the
+                    configurator as soon as this finishes.
+                  </p>
+                </>
+              )}
+              {lastRun?.error && <p style={{ margin: 0 }}>{lastRun.error}</p>}
+              {lastRun && !lastRun.error && (
+                <p style={{ margin: 0 }}>
+                  {lastRun.rendered} layer{lastRun.rendered === 1 ? '' : 's'} rendered
+                  {lastRun.failed > 0 ? `, ${lastRun.failed} failed` : ''}
+                  {lastRun.stopped ? ' (stopped early)' : ''}. The configurator now uses them.
+                </p>
+              )}
+            </div>
+            <div className="uh-modal-foot">
+              {!lastRun && layerRun && (
+                <button className="uh-btn" onClick={() => { cancelLayersRef.current = true; }}>
+                  Stop
+                </button>
+              )}
+              {lastRun && (
+                <>
+                  <button className="uh-btn" onClick={() => setPopupDismissed(true)}>
+                    Stay here
+                  </button>
+                  <button className="uh-btn gold" onClick={() => navigate(`/configurator/${modelId}`)}>
+                    Open configurator
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmPublish && (
         <Modal

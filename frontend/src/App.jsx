@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { createPortal } from 'react-dom';
 import Configurator from './components/Configurator.jsx';
 import SavedCaptures from './components/SavedCaptures.jsx';
 import InspectorPanel from './components/InspectorPanel.jsx';
@@ -22,7 +23,7 @@ import { renderCaptureLayers } from './utils/layerRenderer.js';
  * with their camera pose and node metadata, and the chrome around it belongs to
  * the surrounding page.
  */
-export default function App({ studio = null }) {
+export default function App({ studio = null, capturesPanel = null }) {
   const [activeTab, setActiveTab] = useState('configurator');
 
   const [model, setModel] = useState(null); // { url, name, key, isBlob }
@@ -353,31 +354,14 @@ export default function App({ studio = null }) {
 
   // --- Selection & navigation ----------------------------------------------------
 
-  const flyToNode = useCallback(
-    (node) => {
-      const root = sceneRootRef.current;
-      if (!root || !node?.box || !sceneMeta) return;
-      const frame = frameForBox(node.box, {
-        root,
-        ignoreObject: node.object,
-        towardCenter: new THREE.Vector3(...sceneMeta.center),
-        containBox: sceneMeta.box,
-        openingPosition: sceneMeta.openingPosition,
-      });
-      setFlyTo({ ...frame, _t: Date.now() });
-    },
-    [sceneMeta]
-  );
-
   const handleSelectNode = useCallback(
     (node) => {
       if (!node) return;
       setSelectedNodeId(node.id);
       setActiveTab('configurator');
-      if (node.box) flyToNode(node);
-      else showToast(`"${node.name || node.rawType}" is a grouping node with no geometry — nothing to fly to.`, 'info');
+      // Selecting only highlights the part; the camera stays where the user put it.
     },
-    [flyToNode, showToast]
+    []
   );
 
   const handlePickInScene = useCallback(
@@ -757,18 +741,14 @@ export default function App({ studio = null }) {
 
   // --- Render --------------------------------------------------------------------
 
-  const selectionBox = selectedNode?.box ?? null;
+  // The capture studio does not mark the picked part; only the standalone viewer does.
+  const selectionBox = studio ? null : selectedNode?.box ?? null;
 
   const inStudio = !!studio;
 
-  return (
-    <div className="app-shell">
-      <div className="topbar">
-        <div className="topbar-title">
-          <strong>{inStudio ? 'Capture studio' : '3D Configurator'}</strong>
-          <span>{model ? model.name : 'Upload a .glb to begin'}</span>
-        </div>
-
+  // In the studio the tabs live in the page's own header, next to "Manage captures"; the
+  // header is outside this component, so they are portalled into the slot it provides.
+  const tabs = (
         <div className="tabs">
           <button className={`tab-btn ${activeTab === 'configurator' ? 'active' : ''}`} onClick={() => setActiveTab('configurator')}>
             Configurator
@@ -777,14 +757,26 @@ export default function App({ studio = null }) {
             Materials &amp; Textures
             {graph && <em>{graph.stats.materialCount}</em>}
           </button>
-          {/* In studio mode the saved angles live in the strip below the viewport,
-              where they can be reviewed against the shot being lined up. */}
+          {/* In studio mode the captured angles live in the right-hand panel. */}
           {!inStudio && (
             <button className={`tab-btn ${activeTab === 'captures' ? 'active' : ''}`} onClick={() => setActiveTab('captures')}>
               Saved Captures
             </button>
           )}
         </div>
+  );
+
+  return (
+    <div className="app-shell">
+      {inStudio && studio.tabsHost && createPortal(tabs, studio.tabsHost)}
+      {!inStudio && (
+      <div className="topbar">
+        <div className="topbar-title">
+          <strong>3D Configurator</strong>
+          <span>{model ? model.name : 'Upload a .glb to begin'}</span>
+        </div>
+
+        {tabs}
 
         <div className="topbar-right">
           {/* Loading the client's finish schedule is a top-level task, so it gets a
@@ -821,9 +813,11 @@ export default function App({ studio = null }) {
           )}
         </div>
       </div>
+      )}
 
       {activeTab === 'configurator' && (
         <Configurator
+          capturesPanel={capturesPanel}
           sceneViewerRef={sceneViewerRef}
           model={model}
           graph={graph}

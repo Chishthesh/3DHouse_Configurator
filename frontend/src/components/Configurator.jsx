@@ -5,46 +5,44 @@ import UploadPanel from './UploadPanel.jsx';
 import NodeTree from './NodeTree.jsx';
 import FinishPanel from './FinishPanel.jsx';
 import LibraryPanel from './LibraryPanel.jsx';
+import { CameraIcon } from './uh/Icons.jsx';
+import { Modal } from './uh/Ui.jsx';
 
 function SaveDialog({ defaultName, editCount, busy, onCancel, onSave }) {
   const [name, setName] = useState(defaultName);
   return (
-    <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <h3>Capture 2D Image</h3>
-        <p className="muted small">
-          Stores the current view as an image together with the {editCount} finish change{editCount === 1 ? '' : 's'} behind
-          it. Saving under a name you have used before adds a new version next to it, so alternatives stay side by side.
-        </p>
-        {editCount === 0 && (
-          <div className="panel-note warn">
-            Nothing has been changed yet — this will save the model exactly as delivered. That is a valid &quot;before&quot;
-            shot, just be aware it records no finishes.
-          </div>
-        )}
-        <label className="modal-label">
-          Name
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && name.trim()) onSave(name.trim());
-              if (e.key === 'Escape') onCancel();
-            }}
-            placeholder="e.g. kitchen_floor"
-          />
-        </label>
-        <div className="modal-actions">
-          <button className="btn" type="button" onClick={onCancel}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" type="button" disabled={!name.trim() || busy} onClick={() => onSave(name.trim())}>
-            {busy ? 'Saving…' : 'Save'}
-          </button>
+    <Modal
+      title="Capture 2D Image"
+      confirmLabel="Save"
+      busy={busy}
+      confirmDisabled={!name.trim()}
+      onCancel={onCancel}
+      onConfirm={() => name.trim() && onSave(name.trim())}
+    >
+      <p style={{ margin: 0 }}>
+        Stores the current view as an image together with the {editCount} finish change{editCount === 1 ? '' : 's'} behind
+        it. Saving under a name you have used before adds a new version next to it, so alternatives stay side by side.
+      </p>
+      {editCount === 0 && (
+        <div className="uh-note">
+          Nothing has been changed yet — this will save the model exactly as delivered. That is a valid &quot;before&quot;
+          shot, just be aware it records no finishes.
         </div>
-      </div>
-    </div>
+      )}
+      <label className="uh-field-label">
+        Name
+        <input
+          autoFocus
+          className="uh-inline-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && name.trim() && !busy) onSave(name.trim());
+          }}
+          placeholder="e.g. kitchen_floor"
+        />
+      </label>
+    </Modal>
   );
 }
 
@@ -97,6 +95,7 @@ function useViewportDrop({ onFileChosen, onLoadLibraryFile, enabled }) {
 }
 
 export default function Configurator({
+  capturesPanel = null,
   sceneViewerRef,
   model,
   graph,
@@ -244,7 +243,8 @@ export default function Configurator({
                 onClick={() => setSaveOpen(true)}
                 title="Save this view and the finishes applied"
               >
-                📷 Capture 2D Image
+                <CameraIcon size={16} />
+                Capture 2D Image
               </button>
             </div>
 
@@ -270,6 +270,7 @@ export default function Configurator({
       </div>
 
       <FinishPanel
+        capturesPanel={capturesPanel}
         graph={graph}
         node={selectedNode}
         labelFor={labelFor}

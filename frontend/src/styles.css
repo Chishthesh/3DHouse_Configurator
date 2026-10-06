@@ -629,7 +629,7 @@ code {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: #cfdce8;
+  background: #000;
 }
 .viewport canvas {
   display: block;
@@ -679,6 +679,33 @@ code {
 }
 .pill.primary:hover:not(:disabled) {
   background: var(--accent-dark);
+}
+
+/* Pills float over the 3D view, which is navy: dark glass for the neutral ones and the
+   theme's gold for the primary action, matching the rest of the app. */
+.viewport .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(27, 32, 56, 0.82);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.viewport .pill:hover:not(:disabled) {
+  background: rgba(44, 49, 80, 0.95);
+}
+.viewport .pill.primary {
+  background: #e9c46a; /* --uh-gold */
+  border-color: #efcd78;
+  color: #1b2038;
+  font-weight: 700;
+}
+.viewport .pill.primary:hover:not(:disabled) {
+  background: #efcd78;
+}
+.viewport .pill.selected-pill em {
+  color: rgba(255, 255, 255, 0.6);
 }
 .pill.selected-pill {
   cursor: default;

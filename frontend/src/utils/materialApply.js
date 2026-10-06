@@ -16,7 +16,9 @@ const textureCache = new Map();
 function loadTexture(url) {
   if (textureCache.has(url)) return textureCache.get(url);
   const promise = new Promise((resolve, reject) => {
-    new THREE.TextureLoader().load(
+    // Textures uploaded with the schedule are served by the API, a different origin
+    // from the page; without this WebGL refuses to read them as tainted.
+    new THREE.TextureLoader().setCrossOrigin('anonymous').load(
       url,
       (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;

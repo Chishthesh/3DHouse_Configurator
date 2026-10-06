@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertIcon } from './Icons.jsx';
 
 /** Transient status messages. One at a time — stacked toasts hide each other. */
@@ -101,7 +102,7 @@ export function ErrorBox({ error, onRetry }) {
   );
 }
 
-export function Modal({ title, children, confirmLabel = 'Confirm', confirmKind = 'gold', onConfirm, onCancel, busy, confirmDisabled }) {
+export function Modal({ title, children, confirmLabel = 'Confirm', confirmKind = 'gold', onConfirm, onCancel, busy, confirmDisabled, width }) {
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && !busy) onCancel?.();
@@ -110,9 +111,12 @@ export function Modal({ title, children, confirmLabel = 'Confirm', confirmKind =
     return () => window.removeEventListener('keydown', onKey);
   }, [onCancel, busy]);
 
-  return (
+  // Rendered on <body>, not where the caller sits: a card with a hover transform becomes
+  // the containing block for position:fixed, so the dialog would be laid out inside the
+  // card and jump whenever the hover state changed.
+  return createPortal(
     <div className="uh-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel?.()}>
-      <div className="uh-modal" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="uh-modal" role="dialog" aria-modal="true" aria-label={title} style={width ? { maxWidth: width } : undefined}>
         <div className="uh-modal-head">
           <h2>{title}</h2>
         </div>
@@ -127,6 +131,8 @@ export function Modal({ title, children, confirmLabel = 'Confirm', confirmKind =
         </div>
       </div>
     </div>
+    ,
+    document.body
   );
 }
 

@@ -163,6 +163,7 @@ export default function ConfigureListPage() {
                     <ScheduleUpload
                       modelId={m.id}
                       current={m.hasSchedule}
+                      hasAngles={m.publishedCaptureCount > 0}
                       className={`uh-btn sm${ready ? '' : ' gold'}`}
                       compact
                       onAttached={(res) => {

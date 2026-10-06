@@ -815,6 +815,95 @@
   padding: 10px 4px;
 }
 
+/* Captured angles, shown in the studio's right-hand panel rather than a strip under the
+   3D view, which gives the model the full height. */
+/* The studio's view tabs sit in the navy header beside the action buttons, and are cut to
+   the same size as them: one height, one font size, one radius across the whole row. */
+.uh-studio-tabs {
+  display: contents;
+}
+
+.uh-studio-tabs .tabs {
+  display: contents;
+}
+
+.uh-studio-bar .uh-btn,
+.uh-studio-tabs .tab-btn {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.uh-studio-tabs .tab-btn {
+  background: rgba(255, 255, 255, 0.07);
+  color: #e7ebf5;
+}
+
+.uh-studio-tabs .tab-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+}
+
+.uh-studio-tabs .tab-btn.active {
+  background: var(--uh-gold-strong);
+  border-color: var(--uh-gold-strong);
+  color: #23283f;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.uh-studio-tabs .tab-btn em {
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.uh-captures-panel {
+  padding: 16px 14px;
+}
+
+.uh-captures-panel h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 12px;
+  font-size: 15px;
+  color: #1d2238;
+}
+
+.uh-captures-panel h3 span {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eef0f6;
+  color: #4e5876;
+}
+
+.uh-captures-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.uh-captures-grid .uh-shot {
+  width: auto;
+}
+
+.uh-captures-grid .uh-shot img {
+  height: 92px;
+}
+
 .uh-shot {
   flex: none;
   width: 132px;
@@ -1341,6 +1430,100 @@
   margin-top: 10px;
 }
 
+/* ------------------------------------------------------- schedule textures dialog */
+
+.uh-tex-table-wrap {
+  max-height: 52vh;
+  overflow: auto;
+  border: 1px solid #e3e6ee;
+  border-radius: 8px;
+}
+
+.uh-tex-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.uh-tex-table th {
+  position: sticky;
+  top: 0;
+  background: #f7f8fb;
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #77819c;
+  border-bottom: 1px solid #e3e6ee;
+}
+
+.uh-tex-table td {
+  padding: 8px 10px;
+  vertical-align: top;
+  border-bottom: 1px solid #eef0f5;
+}
+
+.uh-tex-colours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.uh-tex-colour {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.uh-tex-slot {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.uh-tex-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: #eef0f5 center / cover;
+  border: 1px solid #dfe3ed;
+}
+
+.uh-tex-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.uh-tex-state {
+  font-size: 12px;
+  color: #8a93ab;
+}
+
+.uh-tex-slot.uploaded .uh-tex-state,
+.uh-tex-slot.chosen .uh-tex-state {
+  color: #2f7a4b;
+}
+
+.uh-tex-problem {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fbeeee;
+  color: #a33a3a;
+  font-size: 13px;
+}
+
+.uh-tex-progress {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #77819c;
+}
+
 /* ---------------------------------------------------------------- responsive */
 
 @media (max-width: 1080px) {
@@ -1435,4 +1618,225 @@
   color: #7a5f16;
   font-size: 13px;
   line-height: 1.45;
+}
+
+/* ------------------------------------------------------------------ dialog extras */
+
+.uh-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #ecd9a0;
+  border-left: 3px solid var(--uh-gold);
+  border-radius: 8px;
+  background: #fbf4df;
+  color: #6f5714;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.uh-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #4a5370;
+}
+
+/* ------------------------------------------------- materials & textures screen */
+
+.inspector-page {
+  background: #f3f4f9;
+  padding: 24px 28px;
+  color: #2a3048;
+}
+
+.inspector-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.inspector-summary > div {
+  position: relative;
+  min-width: 0;
+  padding: 16px 18px 14px;
+  background: var(--uh-navy-soft);
+  border: 1px solid var(--uh-line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.inspector-summary > div::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--uh-gold);
+}
+
+.inspector-summary strong {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #fff;
+}
+
+.inspector-summary span {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--uh-muted);
+}
+
+.inspector-section {
+  padding: 20px 22px;
+  margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #e3e6ee;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(27, 32, 56, 0.04);
+}
+
+.inspector-section h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1d2238;
+}
+
+.inspector-section-head {
+  margin-bottom: 14px;
+}
+
+.inspector-section-head h3 {
+  margin: 0;
+}
+
+.inspector-section .tree-search {
+  padding: 8px 12px;
+  border: 1px solid #d3d8e3;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13.5px;
+  color: #2a3048;
+}
+
+.inspector-section .tree-search:focus {
+  outline: none;
+  border-color: var(--uh-gold);
+  box-shadow: 0 0 0 3px rgba(233, 196, 106, 0.18);
+}
+
+.texture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 16px;
+}
+
+.texture-card {
+  width: auto;
+  border: 1px solid #e3e6ee;
+  border-radius: 10px;
+  background: #fff;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.texture-card:hover {
+  border-color: #cfd5e3;
+  box-shadow: 0 6px 18px rgba(27, 32, 56, 0.1);
+}
+
+.texture-card img,
+.texture-noimg {
+  height: 124px;
+  background: #eef0f6;
+}
+
+.texture-info {
+  padding: 10px 12px 12px;
+  gap: 3px;
+  font-size: 12px;
+  color: #4e5876;
+}
+
+.texture-info strong {
+  font-size: 13px;
+  color: #1d2238;
+}
+
+.material-table {
+  font-size: 13px;
+  border: 1px solid #e3e6ee;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.material-row {
+  grid-template-columns: 40px minmax(130px, 1.4fr) 90px 110px 140px minmax(170px, 2fr);
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #eef0f5;
+  color: #4e5876;
+}
+
+.material-row:last-child {
+  border-bottom: 0;
+}
+
+.material-row:not(.head):hover {
+  background: #f8f9fc;
+}
+
+.material-row.head {
+  padding-top: 11px;
+  padding-bottom: 11px;
+  background: var(--uh-navy-soft);
+  border-bottom: 0;
+  color: var(--uh-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.mat-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(27, 32, 56, 0.15);
+}
+
+.mat-name {
+  color: #1d2238;
+  font-weight: 600;
+}
+
+.mat-name em {
+  color: #a8801a;
+}
+
+.mat-users {
+  gap: 6px;
+}
+
+.mat-users button {
+  padding: 3px 9px;
+  border: 1px solid #e3e6ee;
+  border-radius: 999px;
+  background: #f3f4f9;
+  color: #4e5876;
+  font-size: 11.5px;
+}
+
+.mat-users button:hover {
+  border-color: var(--uh-gold);
+  background: #fbf4df;
+  color: #6f5714;
+}
+
+.inspector-page .muted {
+  color: #8a93ab;
 }

@@ -122,7 +122,7 @@ function Ground({ y, radius, onMiss }) {
       }}
     >
       <planeGeometry args={[radius * 24, radius * 24]} />
-      <meshStandardMaterial color="#c9ccce" roughness={1} />
+      <meshStandardMaterial color="#0b0b0d" roughness={1} />
     </mesh>
   );
 }
@@ -417,7 +417,7 @@ const SceneViewer = forwardRef(function SceneViewer(
         rendererRef.current = gl;
         cameraRef.current = camera;
         sceneRefLocal.current = scene;
-        gl.setClearColor(new THREE.Color('#cfdce8'));
+        gl.setClearColor(new THREE.Color('#000000'));
         gl.toneMapping = THREE.ACESFilmicToneMapping;
         gl.toneMappingExposure = 1.05;
         gl.outputColorSpace = THREE.SRGBColorSpace;

@@ -203,6 +203,7 @@ function OptionRow({ option, selected, pending, disabled, onPick }) {
 }
 
 export default function FinishPanel({
+  capturesPanel = null,
   graph,
   node,
   labelFor,
@@ -236,9 +237,13 @@ export default function FinishPanel({
     return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [graph]);
 
-  if (!node) {
+  // In the capture studio the panel is just the captured angles, whatever is selected.
+  if (!node || capturesPanel) {
     return (
       <div className="finish-panel">
+        {/* In the capture studio the captured angles take this space; the hint text only shows elsewhere. */}
+        {capturesPanel}
+        {!capturesPanel && (
         <div className="panel-placeholder">
           <h3>Pick a part to customise</h3>
           <p>
@@ -257,6 +262,7 @@ export default function FinishPanel({
             </p>
           )}
         </div>
+        )}
       </div>
     );
   }
