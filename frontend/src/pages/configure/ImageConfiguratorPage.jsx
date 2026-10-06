@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { captures as capturesApi, configurations as configApi, models as modelsApi, schedules as schedulesApi } from '../../api/endpoints.js';
+import {
+  captures as capturesApi,
+  configurations as configApi,
+  models as modelsApi,
+  schedules as schedulesApi,
+  share as shareApi,
+} from '../../api/endpoints.js';
 import { parseMaterialLibrary } from '../../utils/materialLibrary.js';
 import { normalizeKey } from '../../utils/nodeGraph.js';
 import { Empty, ErrorBox, Loading, Modal, useToast } from '../../components/uh/Ui.jsx';
@@ -31,7 +37,14 @@ function swatchStyle(option) {
   return {};
 }
 
-export default function ImageConfiguratorPage({ modelId, configurationId = null }) {
+/**
+ * With `shareToken`, this is the public page behind a model's share link: visitors
+ * from other websites have no account, so it loads from the anonymous share
+ * endpoint and drops everything that needs one — saving, the schedule upload,
+ * layer rendering and the way back to the model list.
+ */
+export default function ImageConfiguratorPage({ modelId, configurationId = null, shareToken = null }) {
+  const isShared = !!shareToken;
   const toast = useToast();
 
   const [model, setModel] = useState(null);
@@ -52,7 +65,10 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
 
   const load = useCallback(() => {
     setError(null);
-    Promise.all([modelsApi.get(modelId), capturesApi.views(modelId), schedulesApi.getParsed(modelId).catch(() => null)])
+    const loaded = isShared
+      ? shareApi.get(shareToken).then((s) => [{ name: s.name, version: s.version, schedule: null }, s.views, s.schedule])
+      : Promise.all([modelsApi.get(modelId), capturesApi.views(modelId), schedulesApi.getParsed(modelId).catch(() => null)]);
+    loaded
       .then(([m, v, parsed]) => {
         setModel(m);
         setViews(v.sort((a, b) => a.sortOrder - b.sortOrder));
@@ -63,7 +79,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
         }
       })
       .catch(setError);
-  }, [modelId]);
+  }, [modelId, isShared, shareToken]);
 
   useEffect(load, [load]);
 
@@ -252,12 +268,14 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
     return (
       <div className="uh-page">
         <ErrorBox error={error} onRetry={load} />
-        <div style={{ marginTop: 14 }}>
-          <button className="uh-btn" onClick={() => navigate('/configurator')}>
-            <ArrowLeftIcon size={16} />
-            Back
-          </button>
-        </div>
+        {!isShared && (
+          <div style={{ marginTop: 14 }}>
+            <button className="uh-btn" onClick={() => navigate('/configurator')}>
+              <ArrowLeftIcon size={16} />
+              Back
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -276,13 +294,21 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
         <Empty
           title="No published angles"
           action={
-            <button className="uh-btn" onClick={() => navigate('/configurator')}>
-              Back to models
-            </button>
+            isShared ? null : (
+              <button className="uh-btn" onClick={() => navigate('/configurator')}>
+                Back to models
+              </button>
+            )
           }
         >
-          {model.name} has no published captures yet, so there is nothing to show. Publish some angles from Models &amp;
-          Captures first.
+          {isShared ? (
+            <>{model.name} has nothing to show yet. Please check back later.</>
+          ) : (
+            <>
+              {model.name} has no published captures yet, so there is nothing to show. Publish some angles from Models
+              &amp; Captures first.
+            </>
+          )}
         </Empty>
       </div>
     );
@@ -348,6 +374,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
 
           {/* The finish schedule lives with the model and is uploaded here — once,
               not per session. Replacing it supersedes the previous version. */}
+          {!isShared && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12.5, color: '#77819c', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {model.schedule
@@ -367,6 +394,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
               onError={(err) => toast.show(`Could not attach the schedule: ${err.message}`, 'error')}
             />
           </div>
+          )}
         </div>
 
         {/* A published angle whose layers were never rendered looks fully working —
@@ -377,6 +405,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
             <AlertIcon size={17} style={{ flex: 'none', marginTop: 1 }} />
             <div style={{ minWidth: 0 }}>
               This angle has no rendered layers yet, so choices here will not change the picture.
+              {!isShared && (
               <div style={{ marginTop: 8 }}>
                 <button
                   className="uh-btn sm gold"
@@ -386,6 +415,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
                   Render layers now
                 </button>
               </div>
+              )}
             </div>
           </div>
         )}
@@ -465,6 +495,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
           <button className="uh-btn sm" disabled={Object.keys(selections).length === 0} onClick={() => setSelections({})}>
             Reset
           </button>
+          {!isShared && (
           <button
             className="uh-btn sm gold"
             disabled={Object.keys(selections).length === 0}
@@ -478,6 +509,7 @@ export default function ImageConfiguratorPage({ modelId, configurationId = null 
             <SaveIcon size={15} />
             Save
           </button>
+          )}
         </div>
       </aside>
 

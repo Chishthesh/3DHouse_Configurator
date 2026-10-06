@@ -73,6 +73,13 @@ export async function uploadModel({ projectId, file, stats, onProgress }) {
   return created.modelId;
 }
 
+// --- Share links ----------------------------------------------------------------
+
+export const share = {
+  /** Public: one model's angles and schedule, by its stored share token. No sign-in. */
+  get: (token) => request(`/api/share/${encodeURIComponent(token)}`, { auth: false }),
+};
+
 // --- Schedules ------------------------------------------------------------------
 
 export const schedules = {

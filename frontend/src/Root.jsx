@@ -10,11 +10,21 @@ import ConfigureListPage from './pages/configure/ConfigureListPage.jsx';
 import ImageConfiguratorPage from './pages/configure/ImageConfiguratorPage.jsx';
 import SavedConfigurationsPage from './pages/configure/SavedConfigurationsPage.jsx';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
-import { RouterProvider, Routes, navigate, useRoute } from './router/Router.jsx';
+import { RouterProvider, Routes, matchPath, navigate, useRoute } from './router/Router.jsx';
 import { Brand } from './components/uh/Brand.jsx';
 import { Empty } from './components/uh/Ui.jsx';
 
 const PUBLIC_PATHS = ['/login', '/forgot-password'];
+
+/**
+ * Where to go after signing in. Only in-app paths are accepted, so a crafted
+ * ?next= can't bounce the user anywhere else.
+ */
+export function safeNext(next) {
+  if (typeof next !== 'string' || !next.startsWith('/') || next.startsWith('//')) return null;
+  if (PUBLIC_PATHS.some((p) => next === p || next.startsWith(`${p}?`))) return null;
+  return next;
+}
 
 function Splash() {
   return (
@@ -46,7 +56,7 @@ function NoAccess({ children }) {
 
 function Shell() {
   const { isAuthenticated, checking, can } = useAuth();
-  const { path } = useRoute();
+  const { path, query } = useRoute();
 
   const isPublic = PUBLIC_PATHS.includes(path);
 
@@ -54,11 +64,25 @@ function Shell() {
   // capture tool, a Customer in the configurator.
   const home = can.manageModels ? '/models' : '/configurator';
 
+  // A shared link (e.g. #/configurator/<id> opened from another application) has to
+  // survive the trip through the login page, or the user lands on the home screen
+  // instead of the model they were sent to.
+  const next = safeNext(query.next);
+
+  // A model's public share link. Its visitors come from other websites and have no
+  // account here, so it is served before — and regardless of — any sign-in.
+  const shared = matchPath('/share/:token', path);
+
   useEffect(() => {
-    if (checking) return;
-    if (!isAuthenticated && !isPublic) navigate('/login', { replace: true });
-    else if (isAuthenticated && (isPublic || path === '/')) navigate(home, { replace: true });
-  }, [checking, isAuthenticated, isPublic, path, home]);
+    if (checking || shared) return;
+    if (!isAuthenticated && !isPublic) {
+      // Built from the route state, not window.location: the effect can re-run after
+      // the hash has already moved to /login but before the route state catches up.
+      const search = new URLSearchParams(query).toString();
+      const keep = path !== '/' && safeNext(search ? `${path}?${search}` : path);
+      navigate(keep ? `/login?next=${encodeURIComponent(keep)}` : '/login', { replace: true });
+    } else if (isAuthenticated && (isPublic || path === '/')) navigate(next ?? home, { replace: true });
+  }, [checking, isAuthenticated, isPublic, path, query, home, next, shared]);
 
   const routes = useMemo(
     () => [
@@ -91,6 +115,16 @@ function Shell() {
     ],
     [can.manageModels, can.configure]
   );
+
+  if (shared) {
+    return (
+      <div className="uh-app">
+        <main className="uh-main">
+          <ImageConfiguratorPage key={shared.token} shareToken={shared.token} />
+        </main>
+      </div>
+    );
+  }
 
   if (checking) return <Splash />;
 

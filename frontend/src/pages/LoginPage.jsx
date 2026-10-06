@@ -35,8 +35,9 @@ export default function LoginPage() {
     setError(null);
     setBusy(true);
     try {
+      // No navigate here: Root redirects once the session exists, to the ?next= link
+      // the user arrived with or to their role's home page.
       await signIn(username.trim(), password);
-      navigate('/models');
     } catch (err) {
       setError(
         err?.status === 401

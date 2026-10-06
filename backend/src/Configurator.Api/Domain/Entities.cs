@@ -89,8 +89,22 @@ public class ModelAsset
     public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
     public Guid UploadedByUserId { get; set; }
 
+    /// <summary>
+    /// Random, unguessable key for the public configurator link (#/share/{token}).
+    /// Generated when the model is added, so every model has one from the start;
+    /// the link is pasted into other websites whose visitors have no account here.
+    /// </summary>
+    public string ShareToken { get; set; } = ShareTokens.New();
+
     public List<Capture> Captures { get; set; } = new();
     public Schedule? Schedule { get; set; }
+}
+
+public static class ShareTokens
+{
+    /// <summary>128 random bits as 32 lowercase hex characters — URL-safe and not enumerable.</summary>
+    public static string New() =>
+        Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
 }
 
 public enum CaptureStatus

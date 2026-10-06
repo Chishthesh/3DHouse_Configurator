@@ -281,6 +281,11 @@ namespace Configurator.Api.Migrations
                     b.Property<Guid>("ProjectId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("ShareToken")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
 
@@ -303,6 +308,9 @@ namespace Configurator.Api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ShareToken")
+                        .IsUnique();
 
                     b.HasIndex("ProjectId", "Status");
 

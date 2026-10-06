@@ -30,9 +30,11 @@ public class AppDbContext : IdentityDbContext<AppUser, AppRole, Guid>
             e.Property(x => x.Name).IsRequired().HasMaxLength(260);
             e.Property(x => x.BlobPath).IsRequired().HasMaxLength(1024);
             e.Property(x => x.ContentHash).HasMaxLength(64);
+            e.Property(x => x.ShareToken).IsRequired().HasMaxLength(32);
             e.HasOne(x => x.Project).WithMany(p => p.Models)
                 .HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(x => new { x.ProjectId, x.Status });
+            e.HasIndex(x => x.ShareToken).IsUnique();
         });
 
         b.Entity<Capture>(e =>

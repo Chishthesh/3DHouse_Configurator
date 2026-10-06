@@ -30,7 +30,8 @@ public record ModelListItemDto(
     int CaptureCount,
     int PublishedCaptureCount,
     bool HasSchedule,
-    DateTimeOffset UploadedAt);
+    DateTimeOffset UploadedAt,
+    string ShareToken);
 
 public record ModelDetailDto(
     Guid Id,
@@ -45,7 +46,8 @@ public record ModelDetailDto(
     int MaterialCount,
     int TextureCount,
     ScheduleDto? Schedule,
-    DateTimeOffset UploadedAt);
+    DateTimeOffset UploadedAt,
+    string ShareToken);
 
 /// <summary>
 /// Step 1 of a two-step upload: the API reserves the row and returns a SAS URL, the
@@ -118,6 +120,16 @@ public record CaptureViewDto(
     LayerDto[] Layers);
 
 public record LayerDto(string NodeName, string OptionKey, string ImageUrl);
+
+/// <summary>
+/// Everything the public share link needs in one call. The model's internal id is
+/// deliberately left out: the token is the only identifier a visitor ever sees.
+/// </summary>
+public record SharedModelDto(
+    string Name,
+    int Version,
+    List<CaptureViewDto> Views,
+    System.Text.Json.JsonElement? Schedule);
 
 public record UpdateCaptureRequest(string? Name, int? SortOrder, CaptureTier? Tier, string[]? ConfigurableNodes);
 

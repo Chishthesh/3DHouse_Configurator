@@ -59,7 +59,8 @@ public class ModelsController : ControllerBase
                 m.Captures.Count,
                 m.Captures.Count(c => c.Status == CaptureStatus.Published),
                 m.Schedule != null,
-                m.UploadedAt))
+                m.UploadedAt,
+                m.ShareToken))
             .ToListAsync(ct);
 
         return Ok(items);
@@ -83,7 +84,7 @@ public class ModelsController : ControllerBase
             model.Id, model.ProjectId, model.Name, model.SizeBytes, model.Version, model.Status,
             _blobs.CreateReadUrl(model.BlobPath),
             model.NodeCount, model.MeshCount, model.MaterialCount, model.TextureCount,
-            schedule, model.UploadedAt));
+            schedule, model.UploadedAt, model.ShareToken));
     }
 
     /// <summary>

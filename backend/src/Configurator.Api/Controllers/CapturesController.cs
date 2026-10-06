@@ -69,22 +69,27 @@ public class CapturesController : ControllerBase
     /// </summary>
     [HttpGet("/api/models/{modelId:guid}/views")]
     public async Task<ActionResult<List<CaptureViewDto>>> Views(Guid modelId, CancellationToken ct)
+        => Ok(await LoadViewsAsync(_db, _blobs, modelId, ct));
+
+    /// <summary>Shared with the public share-link endpoint, so both serve identical angle data.</summary>
+    internal static async Task<List<CaptureViewDto>> LoadViewsAsync(
+        AppDbContext db, IBlobStorage blobs, Guid modelId, CancellationToken ct)
     {
-        var captures = await _db.Captures.AsNoTracking()
+        var captures = await db.Captures.AsNoTracking()
             .Where(c => c.ModelId == modelId && c.Status == CaptureStatus.Published)
             .OrderBy(c => c.SortOrder).ThenBy(c => c.CreatedAt)
             .Include(c => c.Layers)
             .ToListAsync(ct);
 
-        return Ok(captures.Select(c => new CaptureViewDto(
+        return captures.Select(c => new CaptureViewDto(
             c.Id, c.Name, c.SortOrder, c.Width, c.Height,
-            _blobs.CreateReadUrl(c.BaseImagePath),
+            blobs.CreateReadUrl(c.BaseImagePath),
             ParseNames(c.VisibleNodesJson),
             ParseNames(c.ConfigurableNodesJson),
             c.Layers
-                .Select(l => new LayerDto(l.NodeName, l.OptionKey, _blobs.CreateReadUrl(l.ImagePath)))
+                .Select(l => new LayerDto(l.NodeName, l.OptionKey, blobs.CreateReadUrl(l.ImagePath)))
                 .ToArray()
-        )).ToList());
+        )).ToList();
     }
 
     /// <summary>

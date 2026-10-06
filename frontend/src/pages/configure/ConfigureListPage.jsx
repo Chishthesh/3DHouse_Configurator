@@ -2,8 +2,44 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { captures as capturesApi, models as modelsApi, CaptureStatus } from '../../api/endpoints.js';
 import { Badge, Empty, ErrorBox, Loading, formatDate, useToast } from '../../components/uh/Ui.jsx';
 import ScheduleUpload from '../../components/uh/ScheduleUpload.jsx';
-import { CubeIcon, SlidersIcon } from '../../components/uh/Icons.jsx';
+import { CubeIcon, LinkIcon, SlidersIcon } from '../../components/uh/Icons.jsx';
 import { navigate } from '../../router/Router.jsx';
+
+/**
+ * The model's public link, built from the share token stored with it in the
+ * database. It opens the configurator for that one model without signing in, for
+ * pasting into other websites.
+ */
+function shareLink(shareToken) {
+  const { origin, pathname } = window.location;
+  return `${origin}${pathname}#/share/${encodeURIComponent(shareToken)}`;
+}
+
+/**
+ * navigator.clipboard only exists in a secure context (the app is often served over
+ * plain http on a LAN address), and embedded browsers can deny it outright — so fall
+ * back to the old textarea trick in either case.
+ */
+async function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {
+      // Permission denied — try the fallback below.
+    }
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.setAttribute('readonly', '');
+  area.style.position = 'fixed';
+  area.style.opacity = '0';
+  document.body.appendChild(area);
+  area.select();
+  const ok = document.execCommand('copy');
+  document.body.removeChild(area);
+  if (!ok) throw new Error('The browser refused to copy.');
+}
 
 /**
  * Module 2, list view.
@@ -107,6 +143,21 @@ export default function ConfigureListPage() {
                       <button className="uh-btn sm gold" onClick={() => navigate(`/configurator/${m.id}`)}>
                         <SlidersIcon size={15} />
                         Configure
+                      </button>
+                    )}
+                    {ready && m.shareToken && (
+                      <button
+                        className="uh-btn sm"
+                        title="Copy the public link that opens this model in the configurator — no sign-in needed"
+                        onClick={() => {
+                          const link = shareLink(m.shareToken);
+                          copyText(link)
+                            .then(() => toast.show('Link copied — anyone with it can open this model in the configurator.', 'success'))
+                            .catch(() => toast.show(`Could not copy automatically. The link is: ${link}`, 'error'));
+                        }}
+                      >
+                        <LinkIcon size={15} />
+                        Copy link
                       </button>
                     )}
                     <ScheduleUpload
