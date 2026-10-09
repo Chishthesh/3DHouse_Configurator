@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+.azurite/
+tools/
+appsettings.Development.json
+Dockerfile
+.dockerignore
